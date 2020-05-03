@@ -1,0 +1,26 @@
+cabal-version: 1.12
+
+name:           HaXPath
+version:        0.1.0.0
+description:    XPath-generating embedded domain specific language.
+homepage:       https://github.com/hgrano/HaXPath
+bug-reports:    https://github.com/hgrano/HaXPath/issues
+author:         Huw Grano
+maintainer:     huw.grano@gmail.com
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/hgrano/HaXPath
+
+library
+  exposed-modules:
+      HaXPath
+    , HaXPath.Typed
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Werror -O
+  build-depends:
+      base >= 4.6 && < 5
+    , text >= 0.11.3
+  default-language: Haskell2010
