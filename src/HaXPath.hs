@@ -56,6 +56,9 @@ unsafeCast (Expression e) = Expression e
 boolToInt :: Expression Bool -> Expression Int
 boolToInt = unsafeCast
 
+at :: T.Text -> Expression Text
+at = Expression . Attribute
+
 (.=) :: Expression t -> Expression t -> Expression Bool
 Expression x .= Expression y = Expression $ Operator "=" x y
 
