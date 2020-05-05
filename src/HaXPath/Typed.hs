@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -10,190 +11,118 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module HaXPath.Typed(
-  AttributeUnion,
-  Bool,
+  and,
   Expression,
-  fromAnywhere,
-  fromRoot,
-  il,
-  Int,
-  IsPath(..),
-  NodeAttribute,
-  NodeAttributes,
+  IsExpression,
   not,
   or,
   Path,
   RelativePath,
-  SchemaNode,
   text,
-  Text,
-  tl,
-  unsafeAttribute,
-  unsafeNode,
-  (.=),
-  (./),
-  (.//)
+  Union,
+  unsafeAt,
+  (=.),
+  (<.),
+  (<=.),
+  (>.),
+  (>=.),
+  (/.)
 ) where
 
-import Data.Maybe (isJust)
+import qualified Data.String as S
 import qualified Data.Text as T
-import Prelude ((&&), (.), ($), (<>), (<$>))
+import qualified HaXPath as X
+import Prelude ((.), ($))
 import qualified Prelude as P
 
-data Text
-data Int
-data Bool
+class Union (l :: [*]) (m :: [*]) (lm :: [*]) | l m -> lm
 
-class AttributeUnion (l :: [*]) (m :: [*]) (lm :: [*]) | l m -> lm
+instance Union '[] m m
 
-instance AttributeUnion '[] m m
+instance Union l' m lm => Union (l ': l') m (l ': lm)
 
-instance AttributeUnion l' m lm => AttributeUnion (l ': l') m (l ': lm)
+newtype Expression (x :: *) (a :: [*]) = Expression { unExpression :: X.Expression x } deriving (P.Eq, P.Ord)
 
-data Expression' = Function T.Text [Expression'] |
-                   Operator T.Text Expression' Expression' |
-                   Attribute T.Text |
-                   TextLiteral T.Text |
-                   IntegerLiteral P.Integer deriving (P.Eq, P.Ord)
+class IsExpression (h :: *) (x :: *) (a :: [*]) | h -> x a where
+  fromHaskell :: h -> Expression x a
 
-showExpression :: Expression' -> T.Text
-showExpression (Function f exps) = f <> "(" <> args <> ")"
-  where
-    args = T.intercalate ", " $ showExpression <$> exps
-showExpression (Operator o a b) = "(" <> showExpression a <> ") " <> o <> " (" <> showExpression b <> ")"
-showExpression (Attribute a) = "@" <> a
-showExpression (TextLiteral t) = "'" <> t <> "'"
-showExpression (IntegerLiteral i) = T.pack $ P.show i
+instance IsExpression P.String X.Text '[] where
+  fromHaskell = Expression . S.fromString
 
-showExpressionBracketed :: Expression' -> T.Text
-showExpressionBracketed e = "[" <> showExpression e <> "]"
+instance IsExpression P.Integer X.Int '[] where
+  fromHaskell = Expression . P.fromInteger
 
-showExpressions :: [Expression'] -> T.Text
-showExpressions = T.concat . P.fmap showExpressionBracketed . P.reverse
+instance IsExpression P.Bool X.Bool '[] where
+  fromHaskell = Expression . X.literalBool
 
-newtype Expression (t :: *) (a :: [*]) = Expression Expression' deriving (P.Eq, P.Ord)
+instance IsExpression (Expression x a) x a where
+  fromHaskell = P.id
 
--- | Takes a 'Text' and creates a literal text value.
-tl :: T.Text -> Expression Text '[]
-tl = Expression . TextLiteral
+text :: Expression X.Text '[]
+text = Expression X.text
 
--- | Takes an 'Integer' and creates a literal integer value.
-il :: P.Integer -> Expression Int '[]
-il = Expression . IntegerLiteral
-
--- | The XPath 'text()' function.
-text :: Expression Text '[]
-text = Expression $ Function "text" []
-
-or :: AttributeUnion a b c => Expression Bool a -> Expression Bool b -> Expression Bool c
-Expression x `or` Expression y = Expression $ Operator "or" x y
+or :: (IsExpression h1 X.Bool a, IsExpression h2 X.Bool b, Union a b c) =>
+      h1 -> h2 -> Expression X.Bool c
+x `or` y = Expression $ unExpression (fromHaskell x) `X.or` unExpression (fromHaskell y)
 infixr 4 `or`
 
-(.=) :: AttributeUnion a b c => Expression t a -> Expression t b -> Expression Bool c
-Expression x .= Expression y = Expression $ Operator "=" x y
-infixr 6 .=
+and :: (IsExpression h1 X.Bool a, IsExpression h2 X.Bool b, Union a b c) =>
+      h1 -> h2 -> Expression X.Bool c
+x `and` y = Expression $ unExpression (fromHaskell x) `X.and` unExpression (fromHaskell y)
+infixr 5 `and`
 
-not :: Expression Bool a -> Expression Bool a
-not (Expression x) = Expression $ Function "not" [x]
+not :: IsExpression h X.Bool a => h -> Expression X.Bool a
+not = Expression . X.not . unExpression . fromHaskell
 
-unsafeAttribute :: T.Text -> Expression Text a
-unsafeAttribute = Expression . Attribute
+unsafeAt :: T.Text -> Expression X.Text a
+unsafeAt = Expression . X.at
 
-data Axis = Ancestor |
-            Child |
-            Descendant |
-            DescendantOrSelf |
-            Parent deriving (P.Eq, P.Ord)
+binary :: (IsExpression h1 x1 a1, IsExpression h2 x2 a2, Union a1 a2 a3) =>
+          (X.Expression x1 -> X.Expression x2 -> X.Expression x3) -> h1 -> h2 -> Expression x3 a3
+binary op x y = Expression $ unExpression (fromHaskell x) `op` unExpression (fromHaskell y)
 
-showAxis :: Axis -> T.Text
-showAxis axis =
-  let a = case axis of
-        Ancestor -> "ancestor"
-        Child -> "child"
-        Descendant -> "descendant"
-        DescendantOrSelf -> "descendant-or-self::node()/child"
-        Parent -> "parent"
-  in
-  a <> "::"
+(=.) :: (X.Eq x, IsExpression h1 x a, IsExpression h2 x b, Union a b c) =>
+        h1 -> h2 -> Expression X.Bool c
+(=.) = binary (X.=.)
 
-unsafeNode :: T.Text -> RelativePath s n
-unsafeNode name = RelativePath $ RelativePath' name P.Nothing []
+(<.) :: (X.Ord x, IsExpression h1 x a, IsExpression h2 x b, Union a b c) =>
+        h1 -> h2 -> Expression X.Bool c
+(<.) = binary (X.<.)
 
-class NodeAttribute n a
+(<=.) :: (X.Ord x, IsExpression h1 x a, IsExpression h2 x b, Union a b c) =>
+        h1 -> h2 -> Expression X.Bool c
+(<=.) = binary (X.<=.)
 
-class NodeAttributes (n :: *) (a :: [*])
+(>.) :: (X.Ord x, IsExpression h1 x a, IsExpression h2 x b, Union a b c) =>
+        h1 -> h2 -> Expression X.Bool c
+(>.) = binary (X.>.)
 
-instance (NodeAttribute n h, NodeAttributes n t) => NodeAttributes n (h ': t)
+(>=.) :: (X.Ord x, IsExpression h1 x a, IsExpression h2 x b, Union a b c) =>
+        h1 -> h2 -> Expression X.Bool c
+(>=.) = binary (X.>=.)
 
-instance NodeAttributes n '[]
+newtype RelativePath s n = RelativePath  { unRelativePath :: X.RelativePath }  deriving (P.Eq, P.Ord)
 
-data RelativePath' = RelativePath' T.Text (P.Maybe (Axis, RelativePath')) [Expression'] deriving (P.Eq, P.Ord)
+newtype Path s n = Path { unPath :: X.Path } deriving (P.Eq, P.Ord)
 
-showRelativePath :: RelativePath' -> T.Text
-showRelativePath (RelativePath' n nextMay es) =
-  let esStr = showExpressions es
-      nextStr = case nextMay of
-        P.Just (axis, p) -> "/" <> showAxis axis <> showRelativePath p
-        P.Nothing -> ""
-  in
-  let unqual = n <> nextStr in
-  if P.not (P.null es) && isJust nextMay then
-    "(" <> unqual <> ")" <> esStr
-  else
-    unqual <> esStr
+instance IsExpression (Path s n) X.NodeSet '[] where
+  fromHaskell = Expression . unPath
 
--- | Relative path for some schema s returning a node of type n
-newtype RelativePath s n = RelativePath RelativePath' deriving (P.Eq, P.Ord)
-
--- | Witnesses that for some schema 's' we can use nodes of type 'n'.
-class SchemaNode s n
-
-append' :: Axis -> RelativePath' -> RelativePath' -> RelativePath'
-append' axis (RelativePath' n P.Nothing es) u = RelativePath' n (P.Just (axis, u)) es
-append' axis (RelativePath' n (P.Just (a, p)) es) u = RelativePath' n (P.Just (a, append' axis p u)) es
-
-append :: SchemaNode s n => Axis -> RelativePath s n' -> RelativePath s n -> RelativePath s n
-append axis (RelativePath s) (RelativePath u) = RelativePath $ append' axis s u
-
-(./) :: SchemaNode s n => RelativePath s m -> RelativePath s n -> RelativePath s n
-(./) = append Child
-infixr 2 ./
-
-(.//) :: SchemaNode s n => RelativePath s m -> RelativePath s n -> RelativePath s n
-(.//) = append DescendantOrSelf
-infixr 2 .//
-
-data Context = Anywhere | Root deriving (P.Eq, P.Ord)
-
-data Path s n = Path Context (RelativePath s n) [Expression'] deriving (P.Eq, P.Ord)
-
-fromAnywhere :: RelativePath s n -> Path s n
-fromAnywhere r = Path Anywhere r []
-
-fromRoot :: RelativePath s n -> Path s n
-fromRoot r = Path Root r []
-
-class IsPath t where
-  (#) :: NodeAttributes n a => t s n -> Expression Bool a -> t s n
-  infixr 3 #
-
-  showPath :: t s n -> T.Text
-
-instance IsPath RelativePath where
-  RelativePath (RelativePath' n p es) # (Expression e) = RelativePath (RelativePath' n p (e : es))
+class X.IsPath u => IsPath t u | t -> u where
+  toUntypedPath :: t s n -> u
   
-  showPath (RelativePath p) = showAxis Child <> showRelativePath p
+  fromUntypedPath :: u -> t s n
 
-instance IsPath Path where
-  Path c r es # (Expression e) = Path c r (e : es)
+instance IsPath RelativePath X.RelativePath where
+  toUntypedPath = unRelativePath
 
-  showPath (Path c (RelativePath p) es) =
-    let prefix = case c of
-          Anywhere -> showAxis DescendantOrSelf
-          Root -> showAxis Child
-    in
-    let s = "/" <> prefix <> showRelativePath p in
-    if P.not (P.null es) then
-      "(" <> s <> ")" <> showExpressions es
-    else
-      s
+  fromUntypedPath = RelativePath
+
+instance IsPath Path X.Path where
+  toUntypedPath = unPath
+
+  fromUntypedPath = Path
+
+(/.) :: IsPath p u => p s m -> RelativePath s n -> p s n
+p1 /. p2 = fromUntypedPath $ toUntypedPath p1 X./. toUntypedPath p2
+infixr 2 /.

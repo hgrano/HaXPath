@@ -2,7 +2,38 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module HaXPath where
+module HaXPath(
+  and,
+  at,
+  Bool,
+  Expression,
+  Eq,
+  fromAnywhere,
+  fromCurrent,
+  fromRoot,
+  Int,
+  IsPath,
+  literalBool,
+  literalInt,
+  literalText,
+  NodeSet,
+  not,
+  or,
+  Ord,
+  Path,
+  RelativePath,
+  showPath,
+  text,
+  Text,
+  (=.),
+  (<.),
+  (<=.),
+  (>.),
+  (>=.),
+  (/.),
+  (//.),
+  (#)
+) where
 
 import Data.Maybe (isJust)
 import qualified Data.String as S
@@ -50,6 +81,15 @@ showExpressions = T.concat . P.fmap showExpressionBracketed . P.reverse
 
 newtype Expression t = Expression Expression' deriving (P.Eq, P.Ord)
 
+literalText :: T.Text -> Expression Text
+literalText = Expression . TextLiteral
+
+literalInt :: P.Integer -> Expression Int
+literalInt = Expression . IntegerLiteral
+
+literalBool :: P.Bool -> Expression Bool
+literalBool x = Expression . IntegerLiteral $ if x then 1 else 0
+
 unsafeCast :: Expression t -> Expression u
 unsafeCast (Expression e) = Expression e
 
@@ -59,23 +99,35 @@ boolToInt = unsafeCast
 at :: T.Text -> Expression Text
 at = Expression . Attribute
 
-(.=) :: Expression t -> Expression t -> Expression Bool
-Expression x .= Expression y = Expression $ Operator "=" x y
+class Eq t
 
-(.<) :: Expression t -> Expression t -> Expression Bool
-Expression x .< Expression y = Expression $ Operator "<" x y
+instance Eq Text
+instance Eq Int
+instance Eq Bool
 
-(.<=) :: Expression t -> Expression t -> Expression Bool
-Expression x .<= Expression y = Expression $ Operator "<=" x y
+(=.) :: Eq t => Expression t -> Expression t -> Expression Bool
+Expression x =. Expression y = Expression $ Operator "=" x y
 
-(.>) :: Expression t -> Expression t -> Expression Bool
-Expression x .> Expression y = Expression $ Operator ">" x y
+class Eq t => Ord t
 
-(.>=) :: Expression t -> Expression t -> Expression Bool
-Expression x .>= Expression y = Expression $ Operator ">=" x y
+instance Ord Text
+instance Ord Int
+instance Ord Bool
+
+(<.) :: Ord t => Expression t -> Expression t -> Expression Bool
+Expression x <. Expression y = Expression $ Operator "<" x y
+
+(<=.) :: Ord t => Expression t -> Expression t -> Expression Bool
+Expression x <=. Expression y = Expression $ Operator "<=" x y
+
+(>.) :: Ord t => Expression t -> Expression t -> Expression Bool
+Expression x >. Expression y = Expression $ Operator ">" x y
+
+(>=.) :: Ord t => Expression t -> Expression t -> Expression Bool
+Expression x >=. Expression y = Expression $ Operator ">=" x y
 
 instance S.IsString (Expression Text) where
-  fromString = Expression . TextLiteral . T.pack
+  fromString = literalText . T.pack
 
 instance P.Num (Expression Int) where
   Expression x + Expression y = Expression $ Operator "+" x y
@@ -86,13 +138,17 @@ instance P.Num (Expression Int) where
   
   abs x = x * P.signum x
 
-  signum x = boolToInt (x .> 0) - boolToInt (x .< 0)
+  signum x = boolToInt (x >. 0) - boolToInt (x <. 0)
 
-  fromInteger x = Expression $ IntegerLiteral x
+  fromInteger = literalInt
 
 -- | The XPath 'text()' function.
 text :: Expression Text
 text = Expression $ Function "text" []
+
+and :: Expression Bool -> Expression Bool -> Expression Bool
+Expression x `and` Expression y = Expression $ Operator "and" x y
+infixr 4 `and`
 
 or :: Expression Bool -> Expression Bool -> Expression Bool
 Expression x `or` Expression y = Expression $ Operator "or" x y
@@ -148,13 +204,13 @@ instance IsPath RelativePath where
   
   RelativePath n p es # Expression e = RelativePath n p (e : es)
 
-(./) :: IsPath p => p -> RelativePath -> p
-(./) = append Child
-infixr 2 ./
+(/.) :: IsPath p => p -> RelativePath -> p
+(/.) = append Child
+infixr 2 /.
 
-(.//) :: IsPath p => p -> RelativePath -> p
-(.//) = append DescendantOrSelf
-infixr 2 .//
+(//.) :: IsPath p => p -> RelativePath -> p
+(//.) = append DescendantOrSelf
+infixr 2 //.
 
 type Path = Expression NodeSet
 
