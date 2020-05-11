@@ -6,6 +6,7 @@ module HaXPath(
   and,
   at,
   Bool,
+  contains,
   Expression,
   Eq,
   fromAnywhere,
@@ -57,7 +58,14 @@ showExpression :: Expression' -> T.Text
 showExpression (Function f es) = f <> "(" <> args <> ")"
   where
     args = T.intercalate ", " $ showExpression <$> es
-showExpression (Operator o a b) = "(" <> showExpression a <> ") " <> o <> " (" <> showExpression b <> ")"
+showExpression (Operator o a b) = showWithBracket a <> " " <> o <> " " <> showWithBracket b
+  where
+    needsBracket (Operator _ _ _) = P.True
+    needsBracket (Path _ _ _) = P.True
+    needsBracket _ = P.False
+
+    showWithBracket e = if needsBracket e then "(" <> showExpression e <> ")" else showExpression e
+
 showExpression (Attribute a) = "@" <> a
 showExpression (TextLiteral t) = "'" <> t <> "'"
 showExpression (IntegerLiteral i) = T.pack $ P.show i
@@ -146,6 +154,9 @@ instance P.Num (Expression Int) where
 text :: Expression Text
 text = Expression $ Function "text" []
 
+contains :: Expression Text -> Expression Text -> Expression Bool
+contains (Expression x) (Expression y) = Expression $ Function "contains" [x, y]
+
 and :: Expression Bool -> Expression Bool -> Expression Bool
 Expression x `and` Expression y = Expression $ Operator "and" x y
 infixr 4 `and`
@@ -176,6 +187,9 @@ showAxis axis =
   a <> "::"
 
 data RelativePath = RelativePath T.Text (P.Maybe (Axis, RelativePath)) [Expression'] deriving (P.Eq, P.Ord)
+
+instance S.IsString RelativePath where
+  fromString n = RelativePath (T.pack n) P.Nothing []
 
 showRelativePath :: RelativePath -> T.Text
 showRelativePath (RelativePath n nextMay es) =
@@ -220,7 +234,7 @@ showPath (Expression e) = showExpression e
 instance IsPath Path where
   append axis (Expression (Path context p es)) u = Expression $ Path context (append axis p u) es
   append _ _ _ = P.error "HaXPath internal error: unexpected non-Path expression"
-  
+
   Expression (Path context p es) # Expression e = Expression $ Path context p (e : es)
   _ # _ = P.error "HaXPath internal error: unexpected non-Path expression"
 

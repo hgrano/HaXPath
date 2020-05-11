@@ -10,10 +10,11 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module HaXPath.Typed(
+module HaXPath.Schematic(
   and,
   Expression,
   IsExpression,
+  IsPath(..),
   not,
   or,
   Path,
@@ -26,7 +27,8 @@ module HaXPath.Typed(
   (<=.),
   (>.),
   (>=.),
-  (/.)
+  (/.),
+  (#)
 ) where
 
 import qualified Data.String as S
@@ -110,19 +112,32 @@ instance IsExpression (Path s n) X.NodeSet '[] where
 
 class X.IsPath u => IsPath t u | t -> u where
   toUntypedPath :: t s n -> u
-  
-  fromUntypedPath :: u -> t s n
+
+  unsafeFromUntypedPath :: u -> t s n
 
 instance IsPath RelativePath X.RelativePath where
   toUntypedPath = unRelativePath
 
-  fromUntypedPath = RelativePath
+  unsafeFromUntypedPath = RelativePath
 
 instance IsPath Path X.Path where
   toUntypedPath = unPath
 
-  fromUntypedPath = Path
+  unsafeFromUntypedPath = Path
+
+-- | Witnesses that a node of type 'n' may have an attribute of type 'a'.
+class NodeAttribute n a
+
+-- | Witnesses that a node of type 'n' may have zero or more of a set of attributes 'a'.
+class NodeAttributes (n :: *) (a :: [*])
+
+instance (NodeAttribute n h, NodeAttributes n t) => NodeAttributes n (h ': t)
+
+instance NodeAttributes n '[]
 
 (/.) :: IsPath p u => p s m -> RelativePath s n -> p s n
-p1 /. p2 = fromUntypedPath $ toUntypedPath p1 X./. toUntypedPath p2
+p1 /. p2 = unsafeFromUntypedPath $ toUntypedPath p1 X./. toUntypedPath p2
 infixr 2 /.
+
+(#) :: (IsPath p u, NodeAttributes n a) => p s n -> Expression X.Bool a -> p s n
+p # expr = unsafeFromUntypedPath $ toUntypedPath p X.# unExpression expr
