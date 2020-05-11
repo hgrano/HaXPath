@@ -23,6 +23,7 @@ module HaXPath.Schematic(
   Union,
   unsafeAt,
   (=.),
+  (/=.),
   (<.),
   (<=.),
   (>.),
@@ -86,6 +87,10 @@ binary op x y = Expression $ unExpression (fromHaskell x) `op` unExpression (fro
 (=.) :: (X.Eq x, IsExpression h1 x a, IsExpression h2 x b, Union a b c) =>
         h1 -> h2 -> Expression X.Bool c
 (=.) = binary (X.=.)
+
+(/=.) :: (X.Eq x, IsExpression h1 x a, IsExpression h2 x b, Union a b c) =>
+        h1 -> h2 -> Expression X.Bool c
+(/=.) = binary (X./=.)
 
 (<.) :: (X.Ord x, IsExpression h1 x a, IsExpression h2 x b, Union a b c) =>
         h1 -> h2 -> Expression X.Bool c

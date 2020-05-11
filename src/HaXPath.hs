@@ -22,11 +22,13 @@ module HaXPath(
   or,
   Ord,
   Path,
+  position,
   RelativePath,
   showPath,
   text,
   Text,
   (=.),
+  (/=.),
   (<.),
   (<=.),
   (>.),
@@ -115,6 +117,11 @@ instance Eq Bool
 
 (=.) :: Eq t => Expression t -> Expression t -> Expression Bool
 Expression x =. Expression y = Expression $ Operator "=" x y
+infixr 4 =.
+
+(/=.) :: Eq t => Expression t -> Expression t -> Expression Bool
+Expression x /=. Expression y = Expression $ Operator "!=" x y
+infixr 4 /=.
 
 class Eq t => Ord t
 
@@ -151,6 +158,9 @@ instance P.Num (Expression Int) where
   fromInteger = literalInt
 
 -- | The XPath 'text()' function.
+position :: Expression Int
+position = Expression $ Function "position" []
+
 text :: Expression Text
 text = Expression $ Function "text" []
 
@@ -159,11 +169,11 @@ contains (Expression x) (Expression y) = Expression $ Function "contains" [x, y]
 
 and :: Expression Bool -> Expression Bool -> Expression Bool
 Expression x `and` Expression y = Expression $ Operator "and" x y
-infixr 4 `and`
+infixr 3 `and`
 
 or :: Expression Bool -> Expression Bool -> Expression Bool
 Expression x `or` Expression y = Expression $ Operator "or" x y
-infixr 4 `or`
+infixr 2 `or`
 
 -- | The XPath not(.)' function.
 not :: Expression Bool -> Expression Bool
@@ -210,7 +220,7 @@ class IsPath t where
   append :: Axis -> t -> RelativePath -> t
 
   (#) :: t -> Expression Bool -> t
-  infixr 3 #
+  infixr 2 #
 
 instance IsPath RelativePath where
   append axis (RelativePath n P.Nothing es) u = RelativePath n (P.Just (axis, u)) es
