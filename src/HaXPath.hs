@@ -1,4 +1,7 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -7,24 +10,24 @@ module HaXPath(
   at,
   Bool,
   contains,
+  count,
   Expression,
   Eq,
   fromAnywhere,
-  fromCurrent,
   fromRoot,
-  Int,
+  IsExpression(..),
   IsPath,
-  literalBool,
-  literalInt,
-  literalText,
   NodeSet,
   not,
+  Number,
   or,
   Ord,
   Path,
   position,
   RelativePath,
+  showIsPath,
   showPath,
+  showRelativePath,
   text,
   Text,
   (=.),
@@ -44,9 +47,16 @@ import qualified Data.Text as T
 import Prelude ((&&), (+), (-), (*), (.), ($), (<>), (<$>))
 import qualified Prelude as P
 
+-- | XPath textual (string) data type.
 data Text
-data Int
+
+-- | XPath numeric data type.
+data Number
+
+-- | XPath boolean data type.
 data Bool
+
+-- | XPath type representing an unordered set of nodes.
 data NodeSet
 
 data Expression' = Function T.Text [Expression'] |
@@ -54,7 +64,7 @@ data Expression' = Function T.Text [Expression'] |
                    Attribute T.Text |
                    TextLiteral T.Text |
                    IntegerLiteral P.Integer |
-                   Path Context RelativePath [Expression'] deriving (P.Eq, P.Ord)
+                   Path Context RelativePath [Expression']
 
 showExpression :: Expression' -> T.Text
 showExpression (Function f es) = f <> "(" <> args <> ")"
@@ -89,101 +99,125 @@ showExpressionBracketed e = "[" <> showExpression e <> "]"
 showExpressions :: [Expression'] -> T.Text
 showExpressions = T.concat . P.fmap showExpressionBracketed . P.reverse
 
-newtype Expression t = Expression Expression' deriving (P.Eq, P.Ord)
+-- | Opaque representation of an XPath expression.
+newtype Expression t = Expression { unExpression :: Expression' }
 
-literalText :: T.Text -> Expression Text
-literalText = Expression . TextLiteral
+instance S.IsString (Expression Text) where
+  fromString = Expression . TextLiteral . T.pack
 
-literalInt :: P.Integer -> Expression Int
-literalInt = Expression . IntegerLiteral
+-- | The type of XPaths.
+type Path = Expression NodeSet
 
-literalBool :: P.Bool -> Expression Bool
-literalBool x = Expression . IntegerLiteral $ if x then 1 else 0
+class IsExpression a t | a -> t where
+  toExpression :: a -> Expression  t
+
+unIsExpression :: IsExpression a t => a -> Expression'
+unIsExpression = unExpression . toExpression
+
+instance IsExpression P.Bool Bool where
+  toExpression x = Expression $ Function (if x then "true" else "false") []
+
+instance IsExpression (Expression t) t where
+  toExpression = P.id
 
 unsafeCast :: Expression t -> Expression u
 unsafeCast (Expression e) = Expression e
 
-boolToInt :: Expression Bool -> Expression Int
+boolToInt :: Expression Bool -> Expression Number
 boolToInt = unsafeCast
 
+-- | Access the value of a node's attribute in text form (equivalent to XPath's @\@@).
 at :: T.Text -> Expression Text
 at = Expression . Attribute
 
+-- | Type class of XPath types that can be compared for equality.
 class Eq t
 
 instance Eq Text
-instance Eq Int
+instance Eq Number
 instance Eq Bool
 
-(=.) :: Eq t => Expression t -> Expression t -> Expression Bool
-Expression x =. Expression y = Expression $ Operator "=" x y
+-- | The XPath @=@ operator.
+(=.) :: (Eq t, IsExpression a t) => a -> a -> Expression Bool
+x =. y = Expression $ Operator "=" (unIsExpression x) (unIsExpression y)
 infixr 4 =.
 
-(/=.) :: Eq t => Expression t -> Expression t -> Expression Bool
-Expression x /=. Expression y = Expression $ Operator "!=" x y
+-- | The XPath @!=@ operator.
+(/=.) :: (Eq t, IsExpression a t) => a -> a -> Expression Bool
+x /=. y = Expression $ Operator "!="(unIsExpression x) (unIsExpression y)
 infixr 4 /=.
 
+-- | Type class of XPath types that can be ordered.
 class Eq t => Ord t
 
 instance Ord Text
-instance Ord Int
+instance Ord Number
 instance Ord Bool
 
-(<.) :: Ord t => Expression t -> Expression t -> Expression Bool
-Expression x <. Expression y = Expression $ Operator "<" x y
+-- | The XPath @<@ operator.
+(<.) :: (Ord t, IsExpression a t) => a -> a -> Expression Bool
+x <. y = Expression $ Operator "<" (unIsExpression x) (unIsExpression y)
 
-(<=.) :: Ord t => Expression t -> Expression t -> Expression Bool
-Expression x <=. Expression y = Expression $ Operator "<=" x y
+-- | The XPath @<=@ operator.
+(<=.) :: (Ord t, IsExpression a t) => a -> a -> Expression Bool
+x <=. y = Expression $ Operator "<=" (unIsExpression x) (unIsExpression y)
 
-(>.) :: Ord t => Expression t -> Expression t -> Expression Bool
-Expression x >. Expression y = Expression $ Operator ">" x y
+-- | The XPath @>@ operator.
+(>.) :: (Ord t, IsExpression a t) => a -> a -> Expression Bool
+x >. y = Expression $ Operator ">" (unIsExpression x) (unIsExpression y)
 
-(>=.) :: Ord t => Expression t -> Expression t -> Expression Bool
-Expression x >=. Expression y = Expression $ Operator ">=" x y
+-- | The XPath @>=@ operator.
+(>=.) :: (Ord t, IsExpression a t) => a -> a -> Expression Bool
+x >=. y = Expression $ Operator ">=" (unIsExpression x) (unIsExpression y)
 
-instance S.IsString (Expression Text) where
-  fromString = literalText . T.pack
-
-instance P.Num (Expression Int) where
+instance P.Num (Expression Number) where
   Expression x + Expression y = Expression $ Operator "+" x y
-  
+
   Expression x - Expression y = Expression $ Operator "-" x y
-  
+
   Expression x * Expression y = Expression $ Operator "*" x y
-  
+
   abs x = x * P.signum x
 
   signum x = boolToInt (x >. 0) - boolToInt (x <. 0)
 
-  fromInteger = literalInt
+  fromInteger = Expression . IntegerLiteral
 
--- | The XPath 'text()' function.
-position :: Expression Int
+-- | The XPath @position()@ function.
+position :: Expression Number
 position = Expression $ Function "position" []
 
+-- | The XPath @text()@ function.
 text :: Expression Text
 text = Expression $ Function "text" []
 
-contains :: Expression Text -> Expression Text -> Expression Bool
-contains (Expression x) (Expression y) = Expression $ Function "contains" [x, y]
+-- | The XPath @contains()@ function.
+contains :: IsExpression a Text => a -> a -> Expression Bool
+contains x y = Expression . Function "contains" $ [unIsExpression x, unIsExpression y]
 
-and :: Expression Bool -> Expression Bool -> Expression Bool
-Expression x `and` Expression y = Expression $ Operator "and" x y
+-- | The XPath @count()@ function.
+count :: IsExpression a NodeSet => a -> Expression Number
+count p = Expression $ Function "count" [unIsExpression p]
+
+-- | The XPath @and@ operator.
+and :: (IsExpression a Bool, IsExpression b Bool) => a -> b -> Expression Bool
+x `and` y = Expression $ Operator "and" (unIsExpression x) (unIsExpression y)
 infixr 3 `and`
 
-or :: Expression Bool -> Expression Bool -> Expression Bool
-Expression x `or` Expression y = Expression $ Operator "or" x y
+-- | The XPath @or@ operator.
+or :: (IsExpression a Bool, IsExpression b Bool) => a -> b -> Expression Bool
+x `or` y = Expression $ Operator "or" (unIsExpression x) (unIsExpression y)
 infixr 2 `or`
 
--- | The XPath not(.)' function.
-not :: Expression Bool -> Expression Bool
-not (Expression x) = Expression $ Function "not" [x]
+-- | The XPath @not(.)@ function.
+not :: IsExpression a Bool => a -> Expression Bool
+not x = Expression $ Function "not" [unIsExpression x]
 
 data Axis = Ancestor |
             Child |
             Descendant |
             DescendantOrSelf |
-            Parent deriving (P.Eq, P.Ord)
+            Parent
 
 showAxis :: Axis -> T.Text
 showAxis axis =
@@ -196,7 +230,11 @@ showAxis axis =
   in
   a <> "::"
 
-data RelativePath = RelativePath T.Text (P.Maybe (Axis, RelativePath)) [Expression'] deriving (P.Eq, P.Ord)
+-- | A relative XPath, i.e. an XPath that is relative to the current node.
+data RelativePath = RelativePath T.Text (P.Maybe (Axis, RelativePath)) [Expression']
+
+instance IsExpression RelativePath NodeSet where
+  toExpression p = Expression $ Path Implicit p []
 
 instance S.IsString RelativePath where
   fromString n = RelativePath (T.pack n) P.Nothing []
@@ -214,45 +252,54 @@ showRelativePath (RelativePath n nextMay es) =
   else
     unqual <> esStr
 
-data Context = Anywhere | Root | Implicit deriving (P.Eq, P.Ord)
+data Context = Anywhere | Root | Implicit
 
-class IsPath t where
+-- | Type class for allowing XPath-like operations. Do not create instances of this class.
+class IsExpression t NodeSet => IsPath t where
   append :: Axis -> t -> RelativePath -> t
 
-  (#) :: t -> Expression Bool -> t
+  -- | Filter a node set by the given predicate. Equivalent to the use of square brackets in XPath.
+  (#) :: IsExpression b Bool => t -> b -> t
   infixr 2 #
 
 instance IsPath RelativePath where
   append axis (RelativePath n P.Nothing es) u = RelativePath n (P.Just (axis, u)) es
   append axis (RelativePath n (P.Just (a, p)) es) u = RelativePath n (P.Just (a, append axis p u)) es
   
-  RelativePath n p es # Expression e = RelativePath n p (e : es)
+  RelativePath n p es # e = RelativePath n p $ unIsExpression e : es
 
+-- | The XPath @/@ operator.
 (/.) :: IsPath p => p -> RelativePath -> p
 (/.) = append Child
 infixr 2 /.
 
+-- | The XPath @//@ operator.
 (//.) :: IsPath p => p -> RelativePath -> p
 (//.) = append DescendantOrSelf
 infixr 2 //.
 
-type Path = Expression NodeSet
+-- | Display an XPath expression. This is useful to sending the XPath expression to a separate XPath evaluator e.g.
+-- a web browser.
+showIsPath :: IsPath p => p -> T.Text
+showIsPath = showExpression . unIsExpression
 
 showPath :: Path -> T.Text
-showPath (Expression e) = showExpression e
+showPath = showIsPath
+
+nonPathError :: a
+nonPathError = P.error "HaXPath internal error: unexpected non-Path expression"
 
 instance IsPath Path where
   append axis (Expression (Path context p es)) u = Expression $ Path context (append axis p u) es
-  append _ _ _ = P.error "HaXPath internal error: unexpected non-Path expression"
+  append _ _ _ = nonPathError
 
-  Expression (Path context p es) # Expression e = Expression $ Path context p (e : es)
-  _ # _ = P.error "HaXPath internal error: unexpected non-Path expression"
+  Expression (Path context p es) # e = Expression $ Path context p $ unIsExpression e : es
+  _ # _ = nonPathError
 
+-- | Fix a relative path to start from anywhere in the document. This is equivalent to starting an XPath with @//@.
 fromAnywhere :: RelativePath -> Path
 fromAnywhere p = Expression $ Path Anywhere p []
 
+-- | Fix a relative path to start from the document root. This is equivalent to starting an XPath with @/@.
 fromRoot :: RelativePath -> Path
 fromRoot p = Expression $ Path Root p []
-
-fromCurrent :: RelativePath -> Path
-fromCurrent p = Expression $ Path Implicit p []

@@ -17,6 +17,7 @@ library
   exposed-modules:
       HaXPath
     , HaXPath.Schematic
+    , HaXPath.Schematic.HTML
   hs-source-dirs:
       src
   ghc-options: -Wall -Werror -O
