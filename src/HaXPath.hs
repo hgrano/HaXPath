@@ -87,8 +87,8 @@ showExpression (TextLiteral t) = "'" <> t <> "'"
 showExpression (IntegerLiteral i) = T.pack $ P.show i
 showExpression (Path t p es) =
   let prefix = case t of
-        Relative -> "/"
-        Absolute -> ""
+        Relative -> ""
+        Absolute -> "/"
   in
   let s = prefix <> showRelativePath p in
   if P.not (P.null es) then
@@ -247,7 +247,7 @@ nodeToRelativePath axis n = RelativePath {
   rpAxis = axis,
   rpNode = n { nPredicate = [] },
   rpNext = P.Nothing,
-  rpPredicate = []
+  rpPredicate = nPredicate n
 }
 
 child :: Node -> RelativePath
@@ -289,6 +289,7 @@ data PathType = Relative | Absolute
 -- | Type class for allowing XPath-like operations. Do not create instances of this class.
 class IsExpression t NodeSet => IsPath t where
   (./.) :: t -> RelativePath -> t
+  infixl 2 ./.
 
 instance IsPath RelativePath where
   rp ./. rp' = case rpNext rp of
