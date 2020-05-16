@@ -257,6 +257,7 @@ descendantOrSelf = nodeToRelativePath DescendantOrSelf
 -- | The XPath @//@ operator.
 doubleSlash :: Node -> Path
 doubleSlash n = fromRoot $ descendantOrSelf node /. n
+
 -- | A relative XPath, i.e. an XPath that is relative to the current node.
 data RelativePath = RelativePath {
   rpAxis :: !Axis,

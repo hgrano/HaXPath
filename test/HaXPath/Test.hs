@@ -73,6 +73,14 @@ testFunction = H.TestLabel "function" . H.TestCase $ do
     "contains()"
     "child::a[contains(text(), 'hello')]"
     (X.show $ X.child a # X.text `X.contains` "hello")
+  H.assertEqual
+    "count() [relative]"
+    "child::a[count(child::b/child::c[@id = 'id']) = 3]"
+    (X.show $ X.child a # X.count (X.child b /. (c # X.at "id" =. "id")) =. 3)
+  H.assertEqual
+    "count() [absolute]"
+    "child::a[count(/child::b/child::c[@id = 'id']) = 3]"
+    (X.show $ X.child a # X.count (X.fromRoot $ X.child b /. (c # X.at "id" =. "id")) =. 3)
 
 testNum :: H.Test
 testNum = H.TestLabel "num" . H.TestCase $ do
