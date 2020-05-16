@@ -9,14 +9,19 @@ module HaXPath(
   and,
   at,
   Bool,
+  child,
   contains,
   count,
+  descendantOrSelf,
+  doubleSlash,
   Expression,
   Eq,
-  fromAnywhere,
   fromRoot,
   IsExpression(..),
-  IsPath,
+  IsPath(..),
+  namedNode,
+  node,
+  Node,
   NodeSet,
   not,
   Number,
@@ -25,7 +30,7 @@ module HaXPath(
   Path,
   position,
   RelativePath,
-  showIsPath,
+  show,
   showPath,
   showRelativePath,
   text,
@@ -41,7 +46,6 @@ module HaXPath(
   (#)
 ) where
 
-import Data.Maybe (isJust)
 import qualified Data.String as S
 import qualified Data.Text as T
 import Prelude ((&&), (+), (-), (*), (.), ($), (<>), (<$>))
@@ -64,7 +68,7 @@ data Expression' = Function T.Text [Expression'] |
                    Attribute T.Text |
                    TextLiteral T.Text |
                    IntegerLiteral P.Integer |
-                   Path Context RelativePath [Expression']
+                   Path PathType RelativePath [Expression']
 
 showExpression :: Expression' -> T.Text
 showExpression (Function f es) = f <> "(" <> args <> ")"
@@ -81,11 +85,10 @@ showExpression (Operator o a b) = showWithBracket a <> " " <> o <> " " <> showWi
 showExpression (Attribute a) = "@" <> a
 showExpression (TextLiteral t) = "'" <> t <> "'"
 showExpression (IntegerLiteral i) = T.pack $ P.show i
-showExpression (Path c p es) =
-  let prefix = case c of
-        Anywhere -> "/" <> showAxis DescendantOrSelf
-        Root -> "/" <> showAxis Child
-        Implicit -> ""
+showExpression (Path t p es) =
+  let prefix = case t of
+        Relative -> "/"
+        Absolute -> ""
   in
   let s = prefix <> showRelativePath p in
   if P.not (P.null es) then
@@ -220,86 +223,117 @@ data Axis = Ancestor |
             Parent
 
 showAxis :: Axis -> T.Text
-showAxis axis =
-  let a = case axis of
-        Ancestor -> "ancestor"
-        Child -> "child"
-        Descendant -> "descendant"
-        DescendantOrSelf -> "descendant-or-self::node()/child"
-        Parent -> "parent"
-  in
-  a <> "::"
+showAxis axis = case axis of
+  Ancestor -> "ancestor"
+  Child -> "child"
+  Descendant -> "descendant"
+  DescendantOrSelf -> "descendant-or-self"
+  Parent -> "parent"
 
+data Node = Node {
+  nName :: !T.Text,
+  nPredicate :: ![Expression']
+}
+
+-- | The XPath @node()@ function.
+node :: Node
+node = Node "node()" []
+
+namedNode :: T.Text -> Node
+namedNode n = Node n []
+
+nodeToRelativePath :: Axis -> Node -> RelativePath
+nodeToRelativePath axis n = RelativePath {
+  rpAxis = axis,
+  rpNode = n { nPredicate = [] },
+  rpNext = P.Nothing,
+  rpPredicate = []
+}
+
+child :: Node -> RelativePath
+child = nodeToRelativePath Child
+
+descendantOrSelf :: Node -> RelativePath
+descendantOrSelf = nodeToRelativePath DescendantOrSelf
+
+-- | The XPath @//@ operator.
+doubleSlash :: Node -> Path
+doubleSlash n = fromRoot $ descendantOrSelf node /. n
 -- | A relative XPath, i.e. an XPath that is relative to the current node.
-data RelativePath = RelativePath T.Text (P.Maybe (Axis, RelativePath)) [Expression']
+data RelativePath = RelativePath {
+  rpAxis :: !Axis,
+  rpNode :: !Node,
+  rpNext :: !(P.Maybe RelativePath),
+  rpPredicate :: ![Expression']
+}
 
 instance IsExpression RelativePath NodeSet where
-  toExpression p = Expression $ Path Implicit p []
-
-instance S.IsString RelativePath where
-  fromString n = RelativePath (T.pack n) P.Nothing []
+  toExpression p = Expression $ Path Relative p []
 
 showRelativePath :: RelativePath -> T.Text
-showRelativePath (RelativePath n nextMay es) =
-  let esStr = showExpressions es
-      nextStr = case nextMay of
-        P.Just (axis, p) -> "/" <> showAxis axis <> showRelativePath p
+showRelativePath rp =
+  let pred = rpPredicate rp in
+  let esStr = showExpressions pred
+      nextStr = case rpNext rp of
+        P.Just next -> "/" <> showRelativePath next
         P.Nothing -> ""
   in
-  let unqual = n <> nextStr in
-  if P.not (P.null es) && isJust nextMay then
+  let unqual = showAxis (rpAxis rp) <> "::" <> nName (rpNode rp) <> nextStr in
+  if P.not (P.null pred) && P.not (T.null nextStr) then
     "(" <> unqual <> ")" <> esStr
   else
     unqual <> esStr
 
-data Context = Anywhere | Root | Implicit
+data PathType = Relative | Absolute
 
 -- | Type class for allowing XPath-like operations. Do not create instances of this class.
 class IsExpression t NodeSet => IsPath t where
-  append :: Axis -> t -> RelativePath -> t
+  (./.) :: t -> RelativePath -> t
 
-  -- | Filter a node set by the given predicate. Equivalent to the use of square brackets in XPath.
+instance IsPath RelativePath where
+  rp ./. rp' = case rpNext rp of
+    P.Just p -> rp { rpNext = P.Just $ p ./. rp' }
+    P.Nothing -> rp { rpNext = P.Just rp' }
+
+class Filterable t where
   (#) :: IsExpression b Bool => t -> b -> t
   infixr 2 #
 
-instance IsPath RelativePath where
-  append axis (RelativePath n P.Nothing es) u = RelativePath n (P.Just (axis, u)) es
-  append axis (RelativePath n (P.Just (a, p)) es) u = RelativePath n (P.Just (a, append axis p u)) es
-  
-  RelativePath n p es # e = RelativePath n p $ unIsExpression e : es
+instance Filterable Node where
+  n # e = n { nPredicate = unIsExpression e : nPredicate n }
 
--- | The XPath @/@ operator.
-(/.) :: IsPath p => p -> RelativePath -> p
-(/.) = append Child
-infixr 2 /.
+instance Filterable RelativePath where
+  rp # e = rp { rpPredicate = unIsExpression e : rpPredicate rp }
+
+-- | The XPath abbreviated @/@ operator.
+(/.) :: IsPath p => p -> Node -> p
+p /. n = p ./. child n
+infixl 2 /.
 
 -- | The XPath @//@ operator.
-(//.) :: IsPath p => p -> RelativePath -> p
-(//.) = append DescendantOrSelf
-infixr 2 //.
+(//.) :: IsPath p => p -> Node -> p
+p //. n = p ./. descendantOrSelf node ./. child n
+infixl 2 //.
 
 -- | Display an XPath expression. This is useful to sending the XPath expression to a separate XPath evaluator e.g.
 -- a web browser.
-showIsPath :: IsPath p => p -> T.Text
-showIsPath = showExpression . unIsExpression
+show :: IsPath p => p -> T.Text
+show = showExpression . unIsExpression
 
 showPath :: Path -> T.Text
-showPath = showIsPath
+showPath = show
 
 nonPathError :: a
 nonPathError = P.error "HaXPath internal error: unexpected non-Path expression"
 
 instance IsPath Path where
-  append axis (Expression (Path context p es)) u = Expression $ Path context (append axis p u) es
-  append _ _ _ = nonPathError
+  Expression (Path t rp es) ./. rp' = Expression $ Path t (rp ./. rp') es
+  _ ./. _ = nonPathError
 
-  Expression (Path context p es) # e = Expression $ Path context p $ unIsExpression e : es
+instance Filterable Path where
+  Expression (Path context rp es) # e = Expression . Path context rp $ unIsExpression e : es
   _ # _ = nonPathError
 
--- | Fix a relative path to start from anywhere in the document. This is equivalent to starting an XPath with @//@.
-fromAnywhere :: RelativePath -> Path
-fromAnywhere p = Expression $ Path Anywhere p []
-
--- | Fix a relative path to start from the document root. This is equivalent to starting an XPath with @/@.
+-- | Fix a relative path to begin from the document root (i.e. create an absolute path).
 fromRoot :: RelativePath -> Path
-fromRoot p = Expression $ Path Root p []
+fromRoot rp = Expression $ Path Absolute rp []
