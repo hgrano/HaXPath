@@ -31,8 +31,6 @@ module HaXPath(
   position,
   RelativePath,
   show,
-  showPath,
-  showRelativePath,
   text,
   Text,
   (=.),
@@ -278,11 +276,12 @@ showRelativePath rp =
         P.Just next -> "/" <> showRelativePath next
         P.Nothing -> ""
   in
-  let unqual = showAxis (rpAxis rp) <> "::" <> nName (rpNode rp) <> nextStr in
-  if P.not (P.null pred) && P.not (T.null nextStr) then
-    "(" <> unqual <> ")" <> esStr
-  else
-    unqual <> esStr
+  let unqual = showAxis (rpAxis rp) <> "::" <> nName (rpNode rp) in -- <> nextStr in
+  let qual
+        | P.not (P.null pred) && P.not (T.null nextStr) = "(" <> unqual <> ")" <> esStr
+        | P.otherwise = unqual <> esStr
+  in
+  qual <> nextStr
 
 data PathType = Relative | Absolute
 
@@ -320,9 +319,6 @@ infixl 2 //.
 -- a web browser.
 show :: IsPath p => p -> T.Text
 show = showExpression . unIsExpression
-
-showPath :: Path -> T.Text
-showPath = show
 
 nonPathError :: a
 nonPathError = P.error "HaXPath internal error: unexpected non-Path expression"
