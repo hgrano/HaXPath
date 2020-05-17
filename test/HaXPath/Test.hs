@@ -2,9 +2,9 @@
 
 module HaXPath.Test (suite) where
 
-import qualified Test.HUnit as H
 import qualified HaXPath as X
 import HaXPath.Operators
+import qualified Test.HUnit as H
 
 a :: X.Node
 a = X.namedNode "a"
