@@ -62,15 +62,15 @@ testBool = H.TestLabel "bool" . H.TestCase $ do
   H.assertEqual
     "true"
     "child::a[true()]"
-    (X.show $ X.child a # True)
+    (X.show $ X.child a # X.lit True)
   H.assertEqual
     "false"
     "child::a[false()]"
-    (X.show $ X.child a # False)
+    (X.show $ X.child a # X.lit False)
   H.assertEqual
     "false"
     "child::a[false() and (text() != 'abc')]"
-    (X.show $ X.child a # (False &&. X.text /=. "abc"))
+    (X.show $ X.child a # (X.lit False &&. X.text /=. "abc"))
 
 testContext :: H.Test
 testContext = H.TestLabel "context" . H.TestCase $ do
