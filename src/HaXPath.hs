@@ -142,12 +142,12 @@ instance Eq Bool
 -- | The XPath @=@ operator.
 (=.) :: (Eq t, IsExpression a t) => a -> a -> Expression Bool
 x =. y = Expression $ Operator "=" (unIsExpression x) (unIsExpression y)
-infixr 4 =.
+infix 4 =.
 
 -- | The XPath @!=@ operator.
 (/=.) :: (Eq t, IsExpression a t) => a -> a -> Expression Bool
 x /=. y = Expression $ Operator "!="(unIsExpression x) (unIsExpression y)
-infixr 4 /=.
+infix 4 /=.
 
 -- | Type class of XPath types that can be ordered.
 class Eq t => Ord t
@@ -159,18 +159,22 @@ instance Ord Bool
 -- | The XPath @<@ operator.
 (<.) :: (Ord t, IsExpression a t) => a -> a -> Expression Bool
 x <. y = Expression $ Operator "<" (unIsExpression x) (unIsExpression y)
+infix 4 <.
 
 -- | The XPath @<=@ operator.
 (<=.) :: (Ord t, IsExpression a t) => a -> a -> Expression Bool
 x <=. y = Expression $ Operator "<=" (unIsExpression x) (unIsExpression y)
+infix 4 <=.
 
 -- | The XPath @>@ operator.
 (>.) :: (Ord t, IsExpression a t) => a -> a -> Expression Bool
 x >. y = Expression $ Operator ">" (unIsExpression x) (unIsExpression y)
+infix 4 >.
 
 -- | The XPath @>=@ operator.
 (>=.) :: (Ord t, IsExpression a t) => a -> a -> Expression Bool
 x >=. y = Expression $ Operator ">=" (unIsExpression x) (unIsExpression y)
+infix 4 >=.
 
 instance P.Num (Expression Number) where
   Expression x + Expression y = Expression $ Operator "+" x y

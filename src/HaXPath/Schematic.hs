@@ -13,6 +13,8 @@
 module HaXPath.Schematic(
   Attribute,
   child,
+  contains,
+  count,
   descendantOrSelf,
   doubleSlash,
   Expression,
@@ -72,6 +74,12 @@ instance S.IsString Text where
 text :: Expression X.Text '[]
 text = Expression X.text
 
+contains :: Union a b c => Expression X.Text a -> Expression X.Text b -> Expression X.Bool c
+x `contains` y = Expression $ unExpression x `X.contains` unExpression y
+
+count :: IsPath p u => p s n -> Expression X.Number '[]
+count = Expression . X.count . toNonSchematicPath
+
 binary :: Union a b c =>
           (X.Expression x -> X.Expression y -> X.Expression z) ->
           Expression x a ->
@@ -104,12 +112,12 @@ unsafeAt = Expression . X.at
 -- | The XPath @=@ operator.
 (=.) :: (X.Eq x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
 (=.) = binary (X.=.)
-infixr 4 =.
+infixr 6 =.
 
 -- | The XPath @!=@ operator.
 (/=.) :: (X.Eq x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
 (/=.) = binary (X./=.)
-infixr 4 /=.
+infixr 6 /=.
 
 -- | The XPath @<@ operator.
 (<.) :: (X.Ord x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
