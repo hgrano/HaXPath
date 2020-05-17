@@ -161,6 +161,11 @@ testPredicate = H.TestLabel "path" . H.TestCase $ do
     "(child::a/(child::b/child::c)[@id = 'id'])[position() = 2]"
     (X.show $ (X.child a ./. ((X.child b /. c) # X.at "id" =. "id")) # X.position =. 2)
 
+  H.assertEqual
+    "Two filters"
+    "(child::a/child::b)[@id = 'id'][position() = 2]"
+    (X.show $ (X.child a /. b) # X.at "id" =. "id" # X.position =. 2)
+
 suite :: H.Test
 suite = H.TestLabel "HaXPath" $ H.TestList [
     testAppend,
