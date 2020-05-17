@@ -90,12 +90,12 @@ binary op x y = Expression $ unExpression x `op` unExpression y
 -- | The XPath @or()@ function.
 (||.) :: Union a b c => Expression X.Bool a -> Expression X.Bool b -> Expression X.Bool c
 (||.) = binary (X.||.)
-infixr 4 ||.
+infixr 2 ||.
 
 -- | The XPath @and@ operator.
 (&&.) :: Union a b c => Expression X.Bool a -> Expression X.Bool b -> Expression X.Bool c
 (&&.) = binary (X.&&.)
-infixr 5 &&.
+infixr 3 &&.
 
 -- | The XPath @not()@ function.
 not :: Expression X.Bool a -> Expression X.Bool a
@@ -112,28 +112,32 @@ unsafeAt = Expression . X.at
 -- | The XPath @=@ operator.
 (=.) :: (X.Eq x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
 (=.) = binary (X.=.)
-infixr 6 =.
+infix 4 =.
 
 -- | The XPath @!=@ operator.
 (/=.) :: (X.Eq x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
 (/=.) = binary (X./=.)
-infixr 6 /=.
+infix 4 /=.
 
 -- | The XPath @<@ operator.
 (<.) :: (X.Ord x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
 (<.) = binary (X.<.)
+infix 4 <.
 
 -- | The XPath @<=@ operator.
 (<=.) :: (X.Ord x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
 (<=.) = binary (X.<=.)
+infix 4 <=.
 
 -- | The XPath @>@ operator.
 (>.) :: (X.Ord x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
 (>.) = binary (X.>.)
+infix 4 >.
 
 -- | The XPath @>=@ operator.
 (>=.) :: (X.Ord x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
 (>=.) = binary (X.>=.)
+infix 4 >=.
 
 newtype MultiNode (s :: *) (n :: [*]) = Node X.Node
 
