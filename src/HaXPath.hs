@@ -6,7 +6,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module HaXPath(
-  and,
   at,
   Bool,
   child,
@@ -16,6 +15,7 @@ module HaXPath(
   doubleSlash,
   Expression,
   Eq,
+  Filterable(..),
   fromRoot,
   IsExpression(..),
   IsPath(..),
@@ -25,7 +25,6 @@ module HaXPath(
   NodeSet,
   not,
   Number,
-  or,
   Ord,
   Path,
   position,
@@ -33,20 +32,22 @@ module HaXPath(
   show,
   text,
   Text,
-  (=.),
+  (&&.),
+  (/.),
+  (//.),
   (/=.),
   (<.),
   (<=.),
+  (=.),
   (>.),
   (>=.),
-  (/.),
-  (//.),
-  (#)
+  (||.)
 ) where
 
+import Data.Maybe (isJust)
 import qualified Data.String as S
 import qualified Data.Text as T
-import Prelude ((&&), (+), (-), (*), (.), ($), (<>), (<$>))
+import Prelude ((+), (-), (*), (.), ($), (<>), (<$>))
 import qualified Prelude as P
 
 -- | XPath textual (string) data type.
@@ -110,7 +111,7 @@ instance S.IsString (Expression Text) where
 type Path = Expression NodeSet
 
 class IsExpression a t | a -> t where
-  toExpression :: a -> Expression  t
+  toExpression :: a -> Expression t
 
 unIsExpression :: IsExpression a t => a -> Expression'
 unIsExpression = unExpression . toExpression
@@ -201,14 +202,14 @@ count :: IsExpression a NodeSet => a -> Expression Number
 count p = Expression $ Function "count" [unIsExpression p]
 
 -- | The XPath @and@ operator.
-and :: (IsExpression a Bool, IsExpression b Bool) => a -> b -> Expression Bool
-x `and` y = Expression $ Operator "and" (unIsExpression x) (unIsExpression y)
-infixr 3 `and`
+(&&.) :: (IsExpression a Bool, IsExpression b Bool) => a -> b -> Expression Bool
+x &&. y = Expression $ Operator "and" (unIsExpression x) (unIsExpression y)
+infixr 3 &&.
 
 -- | The XPath @or@ operator.
-or :: (IsExpression a Bool, IsExpression b Bool) => a -> b -> Expression Bool
-x `or` y = Expression $ Operator "or" (unIsExpression x) (unIsExpression y)
-infixr 2 `or`
+(||.) :: (IsExpression a Bool, IsExpression b Bool) => a -> b -> Expression Bool
+x ||. y = Expression $ Operator "or" (unIsExpression x) (unIsExpression y)
+infixr 2 ||.
 
 -- | The XPath @not(.)@ function.
 not :: IsExpression a Bool => a -> Expression Bool
@@ -235,18 +236,13 @@ data Node = Node {
 
 -- | The XPath @node()@ function.
 node :: Node
-node = Node "node()" []
+node = namedNode "node()"
 
 namedNode :: T.Text -> Node
 namedNode n = Node n []
 
 nodeToRelativePath :: Axis -> Node -> RelativePath
-nodeToRelativePath axis n = RelativePath {
-  rpAxis = axis,
-  rpNode = n { nPredicate = [] },
-  rpNext = P.Nothing,
-  rpPredicate = nPredicate n
-}
+nodeToRelativePath axis n = RelativeNode P.Nothing axis n
 
 child :: Node -> RelativePath
 child = nodeToRelativePath Child
@@ -259,30 +255,24 @@ doubleSlash :: Node -> Path
 doubleSlash n = fromRoot $ descendantOrSelf node /. n
 
 -- | A relative XPath, i.e. an XPath that is relative to the current node.
-data RelativePath = RelativePath {
-  rpAxis :: !Axis,
-  rpNode :: !Node,
-  rpNext :: !(P.Maybe RelativePath),
-  rpPredicate :: ![Expression']
-}
+data RelativePath = RelativeNode (P.Maybe RelativePath) Axis Node |
+                    Bracketed (P.Maybe RelativePath) RelativePath [Expression']
 
 instance IsExpression RelativePath NodeSet where
   toExpression p = Expression $ Path Relative p []
 
+showPrev :: P.Maybe RelativePath -> T.Text
+showPrev = P.maybe "" $ \rp -> showRelativePath rp <> "/"
+
 showRelativePath :: RelativePath -> T.Text
-showRelativePath rp =
-  let pred = rpPredicate rp in
-  let esStr = showExpressions pred
-      nextStr = case rpNext rp of
-        P.Just next -> "/" <> showRelativePath next
-        P.Nothing -> ""
-  in
-  let unqual = showAxis (rpAxis rp) <> "::" <> nName (rpNode rp) in -- <> nextStr in
-  let qual
-        | P.not (P.null pred) && P.not (T.null nextStr) = "(" <> unqual <> ")" <> esStr
-        | P.otherwise = unqual <> esStr
-  in
-  qual <> nextStr
+showRelativePath (RelativeNode prev axis n) = showPrev prev <>
+  showAxis axis <>
+  "::" <>
+  nName n <>
+  showExpressions (nPredicate n)
+showRelativePath (Bracketed prev rp pred)
+  | P.null pred = showPrev prev <> showRelativePath rp
+  | P.otherwise = showPrev prev <> "(" <> showRelativePath rp <> ")" <> showExpressions pred
 
 data PathType = Relative | Absolute
 
@@ -292,19 +282,25 @@ class IsExpression t NodeSet => IsPath t where
   infixl 2 ./.
 
 instance IsPath RelativePath where
-  rp ./. rp' = case rpNext rp of
-    P.Just p -> rp { rpNext = P.Just $ p ./. rp' }
-    P.Nothing -> rp { rpNext = P.Just rp' }
+  rp ./. RelativeNode P.Nothing axis n = RelativeNode (P.Just rp) axis n
+  rp ./. RelativeNode (P.Just prev) axis n = RelativeNode (P.Just $ rp ./. prev) axis n
+  rp ./. Bracketed P.Nothing rp' pred = Bracketed (P.Just rp) rp' pred
+  rp ./. b@(Bracketed (P.Just _) _ _) = Bracketed (P.Just rp) b []
 
 class Filterable t where
   (#) :: IsExpression b Bool => t -> b -> t
-  infixr 2 #
+  infixl 3 #
 
 instance Filterable Node where
   n # e = n { nPredicate = unIsExpression e : nPredicate n }
 
 instance Filterable RelativePath where
-  rp # e = rp { rpPredicate = unIsExpression e : rpPredicate rp }
+  b@(Bracketed prev rp pred) # e
+    | isJust prev = Bracketed P.Nothing b [unIsExpression e]
+    | P.otherwise = Bracketed prev rp (unIsExpression e : pred)
+  rn@(RelativeNode prev axis n) # e
+   | isJust prev = Bracketed P.Nothing rn [unIsExpression e]
+   | P.otherwise = RelativeNode prev axis n { nPredicate = unIsExpression e : nPredicate n }
 
 -- | The XPath abbreviated @/@ operator.
 (/.) :: IsPath p => p -> Node -> p

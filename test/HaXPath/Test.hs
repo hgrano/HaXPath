@@ -3,8 +3,8 @@
 module HaXPath.Test (suite) where
 
 import qualified Test.HUnit as H
-import HaXPath ((/.), (./.), (//.), (=.), (/=.), (<.), (<=.), (>.), (>=.), (#))
 import qualified HaXPath as X
+import HaXPath.Operators
 
 a :: X.Node
 a = X.namedNode "a"
@@ -14,6 +14,9 @@ b = X.namedNode "b"
 
 c :: X.Node
 c = X.namedNode "c"
+
+d :: X.Node
+d = X.namedNode "d"
 
 testAppend :: H.Test
 testAppend = H.TestLabel "append" . H.TestCase $ do
@@ -25,6 +28,10 @@ testAppend = H.TestLabel "append" . H.TestCase $ do
     "Child(abbrev)"
     "/descendant-or-self::node()/child::a/child::b" 
     (X.show $ X.doubleSlash a /. b)
+  H.assertEqual
+    "Child(abbrev) with brackets"
+    "child::a/child::b/child::c" 
+    (X.show $ X.child a ./. (X.child b /. c))
   H.assertEqual
     "Descendent or self"
     "/descendant-or-self::node()/child::a/descendant-or-self::node()/child::b"
@@ -39,15 +46,15 @@ testBool = H.TestLabel "bool" . H.TestCase $ do
   H.assertEqual
     "and"
     "child::a[(text() = 'abc') and contains(@id, 'def')]"
-    (X.show $ X.child a # X.text =. "abc" `X.and` X.contains (X.at "id") "def")
+    (X.show $ X.child a # (X.text =. "abc" &&. X.at "id" `X.contains` "def"))
   H.assertEqual
     "or"
     "child::a[(text() = 'abc') or contains(@id, 'def')]"
-    (X.show $ X.child a # X.text =. "abc" `X.or` X.contains (X.at "id") "def")
+    (X.show $ X.child a # (X.text =. "abc" ||. X.at "id" `X.contains` "def"))
   H.assertEqual
     "not"
     "child::a[(text() = 'abc') or contains(@id, 'def')]"
-    (X.show $ X.child a # X.text =. "abc" `X.or` X.contains (X.at "id") "def")
+    (X.show $ X.child a # (X.text =. "abc" ||. X.at "id" `X.contains` "def"))
   H.assertEqual
     "!="
     "child::a[text() != 'abc']"
@@ -60,6 +67,10 @@ testBool = H.TestLabel "bool" . H.TestCase $ do
     "false"
     "child::a[false()]"
     (X.show $ X.child a # False)
+  H.assertEqual
+    "false"
+    "child::a[false() and (text() != 'abc')]"
+    (X.show $ X.child a # (False &&. X.text /=. "abc"))
 
 testContext :: H.Test
 testContext = H.TestLabel "context" . H.TestCase $ do
@@ -76,11 +87,12 @@ testFunction = H.TestLabel "function" . H.TestCase $ do
   H.assertEqual
     "count() [relative]"
     "child::a[count(child::b/child::c[@id = 'id']) = 3]"
-    (X.show $ X.child a # X.count (X.child b /. (c # X.at "id" =. "id")) =. 3)
+    (X.show $ X.child a # X.count (X.child b /. c # X.at "id" =. "id") =. 3)
   H.assertEqual
     "count() [absolute]"
     "child::a[count(/child::b/child::c[@id = 'id']) = 3]"
-    (X.show $ X.child a # X.count (X.fromRoot $ X.child b /. (c # X.at "id" =. "id")) =. 3)
+    (X.show $ X.child a # X.count (X.fromRoot $ X.child b /. c # X.at "id" =. "id") =. 3)
+  H.assertEqual "not()" "child::a[not(@id = 'id')]" (X.show $ X.child a # X.not (X.at "id" =. "id"))
 
 testNum :: H.Test
 testNum = H.TestLabel "num" . H.TestCase $ do
@@ -102,12 +114,12 @@ testOrd = H.TestLabel "ord" . H.TestCase $ do
   H.assertEqual ">" "child::a[2 > position()]" (X.show $ X.child a # 2 >. X.position)
   H.assertEqual ">=" "child::a[2 >= position()]" (X.show $ X.child a # 2 >=. X.position)
 
-testPath :: H.Test
-testPath = H.TestLabel "path" . H.TestCase $ do
+testPredicate :: H.Test
+testPredicate = H.TestLabel "path" . H.TestCase $ do
   H.assertEqual
     "filter node"
     "/descendant-or-self::node()/child::a/child::b/child::c[@id = 'id']"
-    (X.show $ X.doubleSlash a /. b /. (c # X.at "id" =. "id"))
+    (X.show $ X.doubleSlash a /. b /. c # X.at "id" =. "id")
 
   H.assertEqual
     "filter absolute"
@@ -117,17 +129,37 @@ testPath = H.TestLabel "path" . H.TestCase $ do
   H.assertEqual
     "double filter"
     "(/descendant-or-self::node()/child::a/child::b/child::c[@id = 'id'])[@id = 'id']"
-     (X.show $ (X.doubleSlash a /. b /. (c # X.at "id" =. "id")) # X.at "id" =. "id")
+     (X.show $ (X.doubleSlash a /. b /. c # X.at "id" =. "id") # X.at "id" =. "id")
 
   H.assertEqual
     "filter in middle"
-    "/descendant-or-self::node()/child::a/(child::b)[@id = 'id']/child::c"
+    "/descendant-or-self::node()/child::a/child::b[@id = 'id']/child::c"
     (X.show $ X.doubleSlash a ./. (X.child b # X.at "id" =. "id") /. c)
 
   H.assertEqual
     "filter in middle (abbrev)"
-    "/descendant-or-self::node()/child::a/(child::b)[@id = 'id']/child::c"
+    "/descendant-or-self::node()/child::a/child::b[@id = 'id']/child::c"
     (X.show $ X.doubleSlash a /. (b # X.at "id" =. "id") /. c)
+
+  H.assertEqual
+    "filter in middle with 2 nodes"
+    "/descendant-or-self::node()/child::a/(child::b/child::c)[@id = 'id']/child::d"
+    (X.show $ X.doubleSlash a ./. ((X.child b /. c) # X.at "id" =. "id") /. d)
+
+  H.assertEqual
+    "brackets + brackets"
+    "child::a/child::b/(child::c/child::d)[@id = 'id2']"
+    (X.show $ X.child a ./. (X.child b ./. ((X.child c /. d) # X.at "id" =. "id2")))
+
+  H.assertEqual
+    "filtering bracketed expression"
+    "(child::a/child::b)[@id = 'id'][position() = 2]"
+    (X.show $ ((X.child a /. b) # X.at "id" =. "id") # X.position =. 2)
+
+  H.assertEqual
+    "filtering bracketed expression with prev"
+    "(child::a/(child::b/child::c)[@id = 'id'])[position() = 2]"
+    (X.show $ (X.child a ./. ((X.child b /. c) # X.at "id" =. "id")) # X.position =. 2)
 
 suite :: H.Test
 suite = H.TestLabel "HaXPath" $ H.TestList [
@@ -138,5 +170,5 @@ suite = H.TestLabel "HaXPath" $ H.TestList [
     testFunction,
     testNum,
     testOrd,
-    testPath
+    testPredicate
   ]

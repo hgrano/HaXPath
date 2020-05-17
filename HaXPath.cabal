@@ -16,6 +16,7 @@ source-repository head
 library
   exposed-modules:
       HaXPath
+    , HaXPath.Operators
     , HaXPath.Schematic
     , HaXPath.Schematic.HTML
   hs-source-dirs:
