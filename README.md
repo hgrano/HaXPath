@@ -52,7 +52,7 @@ X.show (X.doubleSlash a /. b # X.position =. 1) === "/descendant-or-self::node()
 X.show (X.doubleSlash a # X.at "id" =. "abc") === "/descendant-or-self::node()/child::a[@id = 'abc']"
 ```
 
-Node the second argument to `#` must represent a boolean value, otherwise it will not type check.
+Note the second argument to `#` must represent a boolean value, otherwise it will not type check.
 
 `test/HaXPath/Test.hs` provides a variety of examples showing what can be done.
 
