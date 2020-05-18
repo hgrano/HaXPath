@@ -1,6 +1,9 @@
 module HaXPath.Schematic.Operators (
   (#),
   (&&.),
+  (*.),
+  (+.),
+  (-.),
   (./.),
   (/.),
   (//.),

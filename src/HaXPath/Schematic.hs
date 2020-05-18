@@ -11,31 +11,42 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module HaXPath.Schematic(
+  abs,
   Attribute,
+  Bool,
   child,
   contains,
   count,
   descendantOrSelf,
   doubleSlash,
   Expression,
+  Filterable(..),
+  fromInteger,
   fromRoot,
   IsPath(..),
+  lit,
   namedNode,
+  negate,
   Node,
   NodeAttribute,
   NodeAttributes,
   NodesAttributes,
   node,
   not,
+  Number,
   Path,
+  position,
   RelativePath,
   SchemaNodes,
   show,
+  signum,
   text,
   Text,
   Union,
   unsafeAt,
-  (#),
+  (+.),
+  (-.),
+  (*.),
   (&&.),
   (./.),
   (/.),
@@ -52,8 +63,8 @@ module HaXPath.Schematic(
 import qualified Data.String as S
 import qualified Data.Text as T
 import qualified HaXPath as X
-import Prelude ((.), ($))
---import qualified Prelude as P
+import Prelude ((+), (-), (*), (.), ($))
+import qualified Prelude as P
 --
 -- | The union of two sets of types.
 class Union (l :: [*]) (m :: [*]) (lm :: [*]) | l m -> lm
@@ -65,7 +76,12 @@ instance Union l' m lm => Union (l ': l') m (l ': lm)
 -- | An XPath expression returning a value of type 'x', involving zero or more attributes 'a'.
 newtype Expression (x :: *) (a :: [*]) = Expression { unExpression :: X.Expression x }
 
+type Bool = Expression X.Bool '[]
+type Number = Expression X.Number '[]
 type Text = Expression X.Text '[]
+
+lit :: X.Lit h x => h -> Expression x '[]
+lit = Expression . X.lit
 
 instance S.IsString Text where
   fromString = Expression . S.fromString
@@ -79,6 +95,9 @@ x `contains` y = Expression $ unExpression x `X.contains` unExpression y
 
 count :: IsPath p u => p s n -> Expression X.Number '[]
 count = Expression . X.count . toNonSchematicPath
+
+position :: Expression X.Number '[]
+position = Expression $ X.position
 
 binary :: Union a b c =>
           (X.Expression x -> X.Expression y -> X.Expression z) ->
@@ -139,6 +158,46 @@ infix 4 >.
 (>=.) = binary (X.>=.)
 infix 4 >=.
 
+-- | The XPath @+@ operator.
+(+.) :: Union a b c => Expression X.Number a -> Expression X.Number b -> Expression X.Number c
+(+.) = binary (+)
+infixl 6 +.
+
+-- | The XPath @-@ operator.
+(-.) :: Union a b c => Expression X.Number a -> Expression X.Number b -> Expression X.Number c
+(-.) = binary (-)
+infixl 6 -.
+
+-- | The XPath @*@ operator.
+(*.) :: Union a b c => Expression X.Number a -> Expression X.Number b -> Expression X.Number c
+(*.) = binary (*)
+infixl 6 *.
+
+-- | Schematic XPath equivalent of 'P.negate'
+negate :: Expression X.Number a -> Expression X.Number a
+negate = Expression . P.negate . unExpression
+
+-- | Schematic XPath equivalent of 'P.abs'
+abs :: Expression X.Number a -> Expression X.Number a
+abs = Expression . P.abs . unExpression
+
+-- | Schematic XPath equivalent of 'P.signum
+signum :: Expression X.Number a -> Expression X.Number a
+signum = Expression . P.signum . unExpression
+
+-- | Schematic XPath equivalent of 'P.fromInteger'
+fromInteger :: P.Integer -> Expression X.Number '[]
+fromInteger = Expression . P.fromInteger
+
+-- | 'P.Num' instance provided only for use of numeric literals. Use '+.', '-.', '*.' operators instead.
+instance P.Num (Expression X.Number '[]) where
+  (+) = (+.)
+  (*) = (*.)
+  abs = abs
+  signum = signum
+  fromInteger = fromInteger
+  negate = negate
+
 newtype MultiNode (s :: *) (n :: [*]) = Node X.Node
 
 type Node (s :: *) (n :: *) = MultiNode s '[n]
@@ -194,13 +253,22 @@ instance (NodeAttributes n a, NodesAttributes n' a) => NodesAttributes (n ': n')
 
 instance NodesAttributes '[] a
 
+class Filterable (t :: * -> [*] -> *) where
+  (#) :: NodesAttributes n a => t s n -> Expression X.Bool a -> t s n
+  infixl 3 #
+
+instance Filterable MultiNode where
+  Node n # Expression pred = Node $ n X.# pred
+
+instance Filterable RelativePath where
+  RelativePath rp # Expression pred = RelativePath $ rp X.# pred
+
+instance Filterable Path where
+  Path rp # Expression pred = Path $ rp X.# pred
+
 (./.) :: IsPath p u => p s m -> RelativePath s n -> p s n
 p1 ./. p2 = unsafeFromNonSchematicPath $ toNonSchematicPath p1 X../. toNonSchematicPath p2
 infixl 2 ./.
-
-(#) :: (IsPath p u, X.Filterable u, NodesAttributes n a) => p s n -> Expression X.Bool a -> p s n
-p # expr = unsafeFromNonSchematicPath $ toNonSchematicPath p X.# unExpression expr
-infixl 3 #
 
 (/.) :: IsPath p u => p s m -> MultiNode s n -> p s n
 p /. (Node n) = unsafeFromNonSchematicPath $ toNonSchematicPath p X./. n
