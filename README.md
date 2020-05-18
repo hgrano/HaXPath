@@ -29,7 +29,7 @@ Some basic examples:
 import qualified HaXPath as X
 import           HaXPath.Operators
 
--- Create XPath nodes "a" and "b"
+-- Create XPath nodes <a> and <b>
 let a = X.namedNode "a"
 let b = X.namedNode "b"
 
@@ -37,7 +37,7 @@ let b = X.namedNode "b"
 let p1 = X.fromRoot $ X.descendantOrSelf X.node ./. X.child a ./. X.child b
 
 -- The same XPath as above but in abbreviated form
-let p2 = X.fromRoot $ X.doubleSlash a /. b
+let p2 = X.doubleSlash a /. b
 
 -- Convert paths to `Text`:
 X.show p1 == "/descendant-or-self::node()/child::a/child::b"
