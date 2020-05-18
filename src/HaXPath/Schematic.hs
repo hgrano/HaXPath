@@ -191,7 +191,7 @@ negate = Expression . P.negate . unExpression
 abs :: Expression X.Number a -> Expression X.Number a
 abs = Expression . P.abs . unExpression
 
--- | Schematic XPath equivalent of 'P.signum
+-- | Schematic XPath equivalent of 'P.signum'
 signum :: Expression X.Number a -> Expression X.Number a
 signum = Expression . P.signum . unExpression
 
@@ -214,21 +214,21 @@ newtype MultiNode (s :: *) (n :: [*]) = Node X.Node
 -- | Type of a single XPath node.
 type Node (s :: *) (n :: *) = MultiNode s '[n]
 
--- | Create a node within the giveb name.
+-- | Create a node within the given name.
 namedNode :: T.Text -> Node s n
 namedNode = Node . X.namedNode
 
--- | A given schema 's' may have use a universe of nodes 'n'.
+-- | A given schema 's' may be comprised of a universe of nodes 'n'.
 class SchemaNodes (s :: *) (n :: [*]) | s -> n
 
 -- | The XPath @node()@ function.
 node :: SchemaNodes s n => MultiNode s n
 node = Node $ X.namedNode "node()"
 
--- | A relative XPath for a schema 's' returning a set of nodes which may any of the type-list 'n'.
+-- | A relative XPath for a schema 's' returning a set of nodes which may be any of the type-list 'n'.
 newtype RelativePath (s :: *) (n :: [*]) = RelativePath  { unRelativePath :: X.RelativePath }
 
--- | The type of XPaths for a schema 's' returning a set of nodes which may any of the type-list 'n'.
+-- | The type of XPaths for a schema 's' returning a set of nodes which may be any of the type-list 'n'.
 newtype Path (s :: *) (n :: [*]) = Path { unPath :: X.Path }
 
 -- | Type class for allowing XPath-like operations. Do not create instances of this class.
@@ -311,7 +311,7 @@ descendantOrSelf (Node n) = unsafeFromNonSchematicPath $ X.descendantOrSelf n
 doubleSlash :: MultiNode s n -> Path s n
 doubleSlash (Node n) = unsafeFromNonSchematicPath $ X.doubleSlash n
 
--- | Display an XPath expression. This is useful to sending the XPath expression to a separate XPath evaluator e.g.
+-- | Display an XPath expression. This is useful for sending the XPath expression to a separate XPath evaluator e.g.
 -- a web browser.
 show :: IsPath p u => p s n -> T.Text
 show = X.show . toNonSchematicPath
