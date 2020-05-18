@@ -48,8 +48,8 @@ You can add qualifiers to filter node sets using the `#` operator:
 
 ```haskell
 X.show (p1 # X.position =. 1) == "(/descendant-or-self::node()/child::a/child::b)[position() = 1]"
-X.show (X.doubleSlash a /. b # X.position =. 1) === "/descendant-or-self::node()/child::a/child::b[position() = 1]"
-X.show (X.doubleSlash a # X.at "id" =. "abc") === "/descendant-or-self::node()/child::a[@id = 'abc']"
+X.show (X.doubleSlash a /. b # X.position =. 1) == "/descendant-or-self::node()/child::a/child::b[position() = 1]"
+X.show (X.doubleSlash a # X.at "id" =. "abc") == "/descendant-or-self::node()/child::a[@id = 'abc']"
 ```
 
 Note the second argument to `#` must represent a boolean value, otherwise it will not type check.
