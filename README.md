@@ -3,7 +3,7 @@ HaXPath is a library and embedded domain-specifc language which enables expressi
 within Haskell.
 
 ## Motivation
-In many contexts when using querying XML documents in Haskell we often need to use `String` values to represent the
+In many contexts when querying XML documents in Haskell we often need to use `String` values to represent the
 XPaths we want to use. These `String` expressions can quickly become hard to manage as they do not take advantage of
 Haskell's type system, particularly for more complex XPaths. We may not know until run-time whether the XPath is even
 syntactically valid. HaXPath does not have its own XPath engine to run the queries, rather it is expected to be used
