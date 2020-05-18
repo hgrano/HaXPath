@@ -1,4 +1,4 @@
-# haxpath
+# HaXPath
 HaXPath is a library and embedded domain-specifc language which enables expression of strongly-typed XPath expressions
 within Haskell.
 
@@ -127,3 +127,6 @@ S.show p == "/child::menu/child::item[contains(@name, 'Waffle')]"
 -- The follwing will not type check because <menu> does not have a price
 S.fromRoot $ S.child menu # price =. ("$7.50" :: S.Text)
 ```
+
+Currently there are no constrains on the axis relationships bewteen nodes. For example, there is no constraint that
+`<item>` must be a child of `<menu>` in the above example. This will be added in future.

@@ -105,6 +105,7 @@ showExpressions = T.concat . P.fmap showExpressionBracketed . P.reverse
 newtype Expression t = Expression { unExpression :: Expression' }
 
 class Lit h x | h -> x where
+  -- | Create an XPath literal value from a Haskell value.
   lit :: h -> Expression x
 
 instance Lit P.Bool Bool where
@@ -233,6 +234,7 @@ showAxis axis = case axis of
   DescendantOrSelf -> "descendant-or-self"
   Parent -> "parent"
 
+-- | Opaque representation of an XPath node.
 data Node = Node {
   nName :: !T.Text,
   nPredicate :: ![Expression']
@@ -242,15 +244,18 @@ data Node = Node {
 node :: Node
 node = namedNode "node()"
 
+-- | Create a node within the given name.
 namedNode :: T.Text -> Node
 namedNode n = Node n []
 
 nodeToRelativePath :: Axis -> Node -> RelativePath
 nodeToRelativePath axis n = RelativeNode P.Nothing axis n
 
+-- | The XPath @child::@ axis.
 child :: Node -> RelativePath
 child = nodeToRelativePath Child
 
+-- | The XPath @descendant-or-self::@ axis.
 descendantOrSelf :: Node -> RelativePath
 descendantOrSelf = nodeToRelativePath DescendantOrSelf
 
@@ -279,9 +284,11 @@ data PathType = Relative | Absolute
 
 -- | Type class for allowing XPath-like operations. Do not create instances of this class.
 class IsPath t where
+  -- | The XPath (non-abbreviated) @/@ operator.
   (./.) :: t -> RelativePath -> t
   infixl 2 ./.
-  
+
+  -- | Convert to a Path.
   toPath :: t -> Path
 
 instance IsPath RelativePath where
@@ -293,6 +300,7 @@ instance IsPath RelativePath where
   toPath rp = Expression $ Path Relative rp []
 
 class Filterable t where
+  -- | Filter a set of nodes by the given predicate.
   (#) :: t -> Expression b -> t
   infixl 3 #
 

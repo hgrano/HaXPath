@@ -36,7 +36,7 @@ instance S.SchemaNodes Schema '[A, B, C, D]
 data Id
 
 id' :: S.Attribute Id
-id' = S.unsafeAt "id"
+id' = S.at "id"
 
 instance S.NodeAttribute A Id
 instance S.NodeAttribute B Id

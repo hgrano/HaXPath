@@ -25,6 +25,7 @@ module HaXPath.Schematic(
   fromRoot,
   IsPath(..),
   lit,
+  MultiNode,
   namedNode,
   negate,
   Node,
@@ -43,7 +44,7 @@ module HaXPath.Schematic(
   text,
   Text,
   Union,
-  unsafeAt,
+  at,
   (+.),
   (-.),
   (*.),
@@ -65,7 +66,7 @@ import qualified Data.Text as T
 import qualified HaXPath as X
 import Prelude ((+), (-), (*), (.), ($))
 import qualified Prelude as P
---
+
 -- | The union of two sets of types.
 class Union (l :: [*]) (m :: [*]) (lm :: [*]) | l m -> lm
 
@@ -76,10 +77,16 @@ instance Union l' m lm => Union (l ': l') m (l ': lm)
 -- | An XPath expression returning a value of type 'x', involving zero or more attributes 'a'.
 newtype Expression (x :: *) (a :: [*]) = Expression { unExpression :: X.Expression x }
 
+-- | The type of simple boolean expressions.
 type Bool = Expression X.Bool '[]
+
+-- | The type of simple numeric expressions.
 type Number = Expression X.Number '[]
+
+-- | The type of simple text expressions.
 type Text = Expression X.Text '[]
 
+-- | Create a literal XPath value.
 lit :: X.Lit h x => h -> Expression x '[]
 lit = Expression . X.lit
 
@@ -90,12 +97,15 @@ instance S.IsString Text where
 text :: Expression X.Text '[]
 text = Expression X.text
 
+-- | The XPath @contains()@ function.
 contains :: Union a b c => Expression X.Text a -> Expression X.Text b -> Expression X.Bool c
 x `contains` y = Expression $ unExpression x `X.contains` unExpression y
 
+-- | The XPath @count()@ function.
 count :: IsPath p u => p s n -> Expression X.Number '[]
 count = Expression . X.count . toNonSchematicPath
 
+-- | The XPath @position()@ function.
 position :: Expression X.Number '[]
 position = Expression $ X.position
 
@@ -106,7 +116,7 @@ binary :: Union a b c =>
           Expression z c
 binary op x y = Expression $ unExpression x `op` unExpression y
 
--- | The XPath @or()@ function.
+-- | The XPath @or@ operator.
 (||.) :: Union a b c => Expression X.Bool a -> Expression X.Bool b -> Expression X.Bool c
 (||.) = binary (X.||.)
 infixr 2 ||.
@@ -120,13 +130,13 @@ infixr 3 &&.
 not :: Expression X.Bool a -> Expression X.Bool a
 not = Expression . X.not . unExpression
 
+-- | The type of an attribute.
 type Attribute a = Expression X.Text '[a]
 
--- | Access the value of a node's attribute in text form (equivalent to XPath's @\@@). Unsafe because it has no way to
--- check if the attribute name provided matches the schema. It is recommend to call this function once only for each
--- attribute in your schema. The resulting value can be re-used.
-unsafeAt :: T.Text -> Attribute a
-unsafeAt = Expression . X.at
+-- | Access the value of a node's attribute in text form (equivalent to XPath's @\@@). It is recommend to call this
+-- function once only for each attribute in your schema. The resulting value can be re-used.
+at :: T.Text -> Attribute a
+at = Expression . X.at
 
 -- | The XPath @=@ operator.
 (=.) :: (X.Eq x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
@@ -198,10 +208,13 @@ instance P.Num (Expression X.Number '[]) where
   fromInteger = fromInteger
   negate = negate
 
+-- | The type of an XPath expression for returning nodes of a variety of types.
 newtype MultiNode (s :: *) (n :: [*]) = Node X.Node
 
+-- | Type of a single XPath node.
 type Node (s :: *) (n :: *) = MultiNode s '[n]
 
+-- | Create a node within the giveb name.
 namedNode :: T.Text -> Node s n
 namedNode = Node . X.namedNode
 
@@ -254,6 +267,7 @@ instance (NodeAttributes n a, NodesAttributes n' a) => NodesAttributes (n ': n')
 instance NodesAttributes '[] a
 
 class Filterable (t :: * -> [*] -> *) where
+  -- | Filter a set of nodes by the given predicate.
   (#) :: NodesAttributes n a => t s n -> Expression X.Bool a -> t s n
   infixl 3 #
 
@@ -266,29 +280,38 @@ instance Filterable RelativePath where
 instance Filterable Path where
   Path rp # Expression pred = Path $ rp X.# pred
 
+-- | The XPath (non-abbreviated) @/@ operator.
 (./.) :: IsPath p u => p s m -> RelativePath s n -> p s n
 p1 ./. p2 = unsafeFromNonSchematicPath $ toNonSchematicPath p1 X../. toNonSchematicPath p2
 infixl 2 ./.
 
+-- | The XPath abbreviated @/@ operator.
 (/.) :: IsPath p u => p s m -> MultiNode s n -> p s n
 p /. (Node n) = unsafeFromNonSchematicPath $ toNonSchematicPath p X./. n
 infixl 2 /.
 
+-- | The XPath @//@ operator.
 (//.) :: IsPath p u => p s m -> MultiNode s n -> p s n
 p //. (Node n) = unsafeFromNonSchematicPath $ toNonSchematicPath p X.//. n
 infixl 2 //.
 
+-- | Fix a relative path to begin from the document root (i.e. create an absolute path).
 fromRoot :: RelativePath s n -> Path s n
 fromRoot = unsafeFromNonSchematicPath . X.fromRoot . toNonSchematicPath
 
+-- | The XPath @child::@ axis.
 child :: MultiNode s n -> RelativePath s n
 child (Node n) = unsafeFromNonSchematicPath $ X.child n
 
+-- | The XPath @descendant-or-self::@ axis.
 descendantOrSelf :: MultiNode s n -> RelativePath s n
 descendantOrSelf (Node n) = unsafeFromNonSchematicPath $ X.descendantOrSelf n
 
+-- | The XPath @//@ operator.
 doubleSlash :: MultiNode s n -> Path s n
 doubleSlash (Node n) = unsafeFromNonSchematicPath $ X.doubleSlash n
 
+-- | Display an XPath expression. This is useful to sending the XPath expression to a separate XPath evaluator e.g.
+-- a web browser.
 show :: IsPath p u => p s n -> T.Text
 show = X.show . toNonSchematicPath
