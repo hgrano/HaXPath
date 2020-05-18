@@ -4,7 +4,7 @@
 
 -- | XPath-generating embedded domain specific language.
 @package HaXPath
-@version 0.1.0.0
+@version 0.1.0.1
 
 module HaXPath
 
@@ -38,7 +38,7 @@ class Eq t
 class Filterable t
 
 -- | Filter a set of nodes by the given predicate.
-(#) :: Filterable t => t -> Expression b -> t
+(#) :: Filterable t => t -> Expression Bool -> t
 infixl 3 #
 
 -- | Fix a relative path to begin from the document root (i.e. create an
@@ -159,7 +159,7 @@ instance HaXPath.Eq HaXPath.Bool
 module HaXPath.Operators
 
 -- | Filter a set of nodes by the given predicate.
-(#) :: Filterable t => t -> Expression b -> t
+(#) :: Filterable t => t -> Expression Bool -> t
 infixl 3 #
 
 -- | The XPath <tt>and</tt> operator.
@@ -266,7 +266,7 @@ lit :: Lit h x => h -> Expression x '[]
 --   types.
 data MultiNode (s :: *) (n :: [*])
 
--- | Create a node within the giveb name.
+-- | Create a node within the given name.
 namedNode :: Text -> Node s n
 
 -- | Schematic XPath equivalent of <a>negate</a>
@@ -297,24 +297,25 @@ not :: Expression Bool a -> Expression Bool a
 type Number = Expression Number '[]
 
 -- | The type of XPaths for a schema <tt>s</tt> returning a set of nodes
---   which may any of the type-list <tt>n</tt>.
+--   which may be any of the type-list <tt>n</tt>.
 data Path (s :: *) (n :: [*])
 
 -- | The XPath <tt>position()</tt> function.
 position :: Expression Number '[]
 
 -- | A relative XPath for a schema <tt>s</tt> returning a set of nodes
---   which may any of the type-list <tt>n</tt>.
+--   which may be any of the type-list <tt>n</tt>.
 data RelativePath (s :: *) (n :: [*])
 
--- | A given schema <tt>s</tt> may have use a universe of nodes <tt>n</tt>.
+-- | A given schema <tt>s</tt> may be comprised of a universe of nodes
+--   <tt>n</tt>.
 class SchemaNodes (s :: *) (n :: [*]) | s -> n
 
--- | Display an XPath expression. This is useful to sending the XPath
+-- | Display an XPath expression. This is useful for sending the XPath
 --   expression to a separate XPath evaluator e.g. a web browser.
 show :: IsPath p u => p s n -> Text
 
--- | Schematic XPath equivalent of 'P.signum
+-- | Schematic XPath equivalent of <a>signum</a>
 signum :: Expression Number a -> Expression Number a
 
 -- | The XPath <tt>text()</tt> function.
@@ -399,11 +400,6 @@ instance Data.String.IsString HaXPath.Schematic.Text
 instance GHC.Num.Num (HaXPath.Schematic.Expression HaXPath.Number '[])
 instance HaXPath.Schematic.Union '[] m m
 instance HaXPath.Schematic.Union l' m lm => HaXPath.Schematic.Union (l : l') m (l : lm)
-
-module HaXPath.Schematic.HTML
-
--- | The HTML schema.
-data HTML
 
 module HaXPath.Schematic.Operators
 

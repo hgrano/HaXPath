@@ -301,7 +301,7 @@ instance IsPath RelativePath where
 
 class Filterable t where
   -- | Filter a set of nodes by the given predicate.
-  (#) :: t -> Expression b -> t
+  (#) :: t -> Expression Bool -> t
   infixl 3 #
 
 instance Filterable Node where
