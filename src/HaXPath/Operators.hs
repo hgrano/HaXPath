@@ -13,4 +13,4 @@ module HaXPath.Operators (
   (||.)
 ) where
 
-import HaXPath
+import           HaXPath

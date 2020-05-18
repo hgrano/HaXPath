@@ -1,9 +1,9 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE NoImplicitPrelude      #-}
+{-# LANGUAGE OverloadedStrings      #-}
 
 module HaXPath(
   at,
@@ -44,11 +44,11 @@ module HaXPath(
   (||.)
 ) where
 
-import Data.Maybe (isJust)
+import           Data.Maybe  (isJust)
 import qualified Data.String as S
-import qualified Data.Text as T
-import Prelude ((+), (-), (*), (.), ($), (<>), (<$>))
-import qualified Prelude as P
+import qualified Data.Text   as T
+import           Prelude     (($), (*), (+), (-), (.), (<$>), (<>))
+import qualified Prelude     as P
 
 -- | XPath textual (string) data type.
 data Text
@@ -76,8 +76,8 @@ showExpression (Function f es) = f <> "(" <> args <> ")"
 showExpression (Operator o a b) = showWithBracket a <> " " <> o <> " " <> showWithBracket b
   where
     needsBracket (Operator _ _ _) = P.True
-    needsBracket (Path _ _ _) = P.True
-    needsBracket _ = P.False
+    needsBracket (Path _ _ _)     = P.True
+    needsBracket _                = P.False
 
     showWithBracket e = if needsBracket e then "(" <> showExpression e <> ")" else showExpression e
 
@@ -228,15 +228,15 @@ data Axis = Ancestor |
 
 showAxis :: Axis -> T.Text
 showAxis axis = case axis of
-  Ancestor -> "ancestor"
-  Child -> "child"
-  Descendant -> "descendant"
+  Ancestor         -> "ancestor"
+  Child            -> "child"
+  Descendant       -> "descendant"
   DescendantOrSelf -> "descendant-or-self"
-  Parent -> "parent"
+  Parent           -> "parent"
 
 -- | Opaque representation of an XPath node.
 data Node = Node {
-  nName :: !T.Text,
+  nName      :: !T.Text,
   nPredicate :: ![Expression']
 }
 

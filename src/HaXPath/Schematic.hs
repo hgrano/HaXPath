@@ -1,14 +1,14 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE KindSignatures         #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE NoImplicitPrelude      #-}
+{-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 module HaXPath.Schematic(
   abs,
@@ -62,10 +62,10 @@ module HaXPath.Schematic(
 ) where
 
 import qualified Data.String as S
-import qualified Data.Text as T
-import qualified HaXPath as X
-import Prelude ((+), (-), (*), (.), ($))
-import qualified Prelude as P
+import qualified Data.Text   as T
+import qualified HaXPath     as X
+import           Prelude     (($), (*), (+), (-), (.))
+import qualified Prelude     as P
 
 -- | The union of two sets of types.
 class Union (l :: [*]) (m :: [*]) (lm :: [*]) | l m -> lm

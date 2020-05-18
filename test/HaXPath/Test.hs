@@ -2,9 +2,9 @@
 
 module HaXPath.Test (suite) where
 
-import qualified HaXPath as X
-import HaXPath.Operators
-import qualified Test.HUnit as H
+import qualified HaXPath           as X
+import           HaXPath.Operators
+import qualified Test.HUnit        as H
 
 a :: X.Node
 a = X.namedNode "a"
@@ -22,15 +22,15 @@ testAppend :: H.Test
 testAppend = H.TestLabel "append" . H.TestCase $ do
   H.assertEqual
     "Child"
-    "/descendant-or-self::node()/child::a/child::b" 
+    "/descendant-or-self::node()/child::a/child::b"
     (X.show . X.fromRoot $ X.descendantOrSelf X.node ./. X.child a ./. X.child b)
   H.assertEqual
     "Child(abbrev)"
-    "/descendant-or-self::node()/child::a/child::b" 
+    "/descendant-or-self::node()/child::a/child::b"
     (X.show $ X.doubleSlash a /. b)
   H.assertEqual
     "Child(abbrev) with brackets"
-    "child::a/child::b/child::c" 
+    "child::a/child::b/child::c"
     (X.show $ X.child a ./. (X.child b /. c))
   H.assertEqual
     "Descendent or self"
