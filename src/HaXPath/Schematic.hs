@@ -12,6 +12,7 @@
 
 module HaXPath.Schematic(
   abs,
+  at,
   Attribute,
   Bool,
   child,
@@ -44,7 +45,6 @@ module HaXPath.Schematic(
   text,
   Text,
   Union,
-  at,
   (+.),
   (-.),
   (*.),
@@ -94,7 +94,7 @@ instance S.IsString Text where
   fromString = Expression . S.fromString
 
 -- | The XPath @text()@ function.
-text :: Expression X.Text '[]
+text :: Text
 text = Expression X.text
 
 -- | The XPath @contains()@ function.
@@ -102,11 +102,11 @@ contains :: Union a b c => Expression X.Text a -> Expression X.Text b -> Express
 x `contains` y = Expression $ unExpression x `X.contains` unExpression y
 
 -- | The XPath @count()@ function.
-count :: IsPath p u => p s n -> Expression X.Number '[]
+count :: IsPath p u => p s n -> Number
 count = Expression . X.count . toNonSchematicPath
 
 -- | The XPath @position()@ function.
-position :: Expression X.Number '[]
+position :: Number
 position = Expression $ X.position
 
 binary :: Union a b c =>
@@ -196,11 +196,11 @@ signum :: Expression X.Number a -> Expression X.Number a
 signum = Expression . P.signum . unExpression
 
 -- | Schematic XPath equivalent of 'P.fromInteger'
-fromInteger :: P.Integer -> Expression X.Number '[]
+fromInteger :: P.Integer -> Number
 fromInteger = Expression . P.fromInteger
 
 -- | 'P.Num' instance provided only for use of numeric literals. Use '+.', '-.', '*.' operators instead.
-instance P.Num (Expression X.Number '[]) where
+instance P.Num Number where
   (+) = (+.)
   (*) = (*.)
   abs = abs
@@ -214,7 +214,7 @@ newtype MultiNode (s :: *) (n :: [*]) = Node X.Node
 -- | Type of a single XPath node.
 type Node (s :: *) (n :: *) = MultiNode s '[n]
 
--- | Create a node within the given name.
+-- | Create a node with the given name.
 namedNode :: T.Text -> Node s n
 namedNode = Node . X.namedNode
 

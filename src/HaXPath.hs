@@ -244,7 +244,7 @@ data Node = Node {
 node :: Node
 node = namedNode "node()"
 
--- | Create a node within the given name.
+-- | Create a node with the given name.
 namedNode :: T.Text -> Node
 namedNode n = Node n []
 

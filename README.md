@@ -26,18 +26,23 @@ Some basic examples:
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import qualified HaXPath as X
+import qualified HaXPath           as X
 import           HaXPath.Operators
 
 -- Create XPath nodes <a> and <b>
-let a = X.namedNode "a"
-let b = X.namedNode "b"
+a :: X.Node
+a = X.namedNode "a"
+
+b :: X.Node
+b = X.namedNode "b"
 
 -- The XPath "/descendant-or-self::node()/child::a/child::b"
-let p1 = X.fromRoot $ X.descendantOrSelf X.node ./. X.child a ./. X.child b
+p1 :: X.Path
+p1 = X.fromRoot $ X.descendantOrSelf X.node ./. X.child a ./. X.child b
 
 -- The same XPath as above but in abbreviated form
-let p2 = X.doubleSlash a /. b
+p2 :: X.Path
+p2 = X.doubleSlash a /. b
 
 -- Convert paths to `Text`:
 X.show p1 == "/descendant-or-self::node()/child::a/child::b"
@@ -72,12 +77,12 @@ It should be fairly intuitive that there is an underlying schema to the above do
 `HaXPath.Schematic` module:
 
 ```haskell
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
-import qualified HaXPath.Schematic as S
+import qualified HaXPath.Schematic           as S
 import           HaXPath.Schematic.Operators
 
 -- Empty data type for our schema

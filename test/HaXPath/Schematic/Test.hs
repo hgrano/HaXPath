@@ -58,6 +58,9 @@ one = 1
 two :: S.Number
 two = 2
 
+three :: S.Number
+three = 3
+
 four :: S.Number
 four = 4
 
@@ -130,11 +133,11 @@ testFunction = H.TestLabel "function" . H.TestCase $ do
   H.assertEqual
     "count() [relative]"
     "child::a[count(child::b/child::c[@id = 'id']) = 3]"
-    (S.show $ S.child a # S.count (S.child b /. c # id' =. ("id" :: S.Text)) =. (3 :: S.Number))
+    (S.show $ S.child a # S.count (S.child b /. c # id' =. ("id" :: S.Text)) =. three)
   H.assertEqual
     "count() [absolute]"
     "child::a[count(/child::b/child::c[@id = 'id']) = 3]"
-    (S.show $ S.child a # S.count (S.fromRoot $ S.child b /. c # id' =. ("id" :: S.Text)) =. (3 :: S.Number))
+    (S.show $ S.child a # S.count (S.fromRoot $ S.child b /. c # id' =. ("id" :: S.Text)) =. three)
   H.assertEqual "not()" "child::a[not(@id = 'id')]" (S.show $ S.child a # S.not (id' =. ("id" :: S.Text)))
 
 testNum :: H.Test
@@ -153,7 +156,7 @@ testNum = H.TestLabel "num" . H.TestCase $ do
 testOrd :: H.Test
 testOrd = H.TestLabel "ord" . H.TestCase $ do
   H.assertEqual "<" "child::a[2 < position()]" (S.show $ S.child a # two <. S.position)
-  H.assertEqual "<" "child::a[2 <= position()]" (S.show $ S.child a # two <=. S.position)
+  H.assertEqual "<=" "child::a[2 <= position()]" (S.show $ S.child a # two <=. S.position)
   H.assertEqual ">" "child::a[2 > position()]" (S.show $ S.child a # two >. S.position)
   H.assertEqual ">=" "child::a[2 >= position()]" (S.show $ S.child a # two >=. S.position)
 
