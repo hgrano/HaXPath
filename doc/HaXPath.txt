@@ -4,7 +4,7 @@
 
 -- | XPath-generating embedded domain specific language.
 @package HaXPath
-@version 0.1.0.1
+@version 0.1.0.2
 
 module HaXPath
 
@@ -60,7 +60,7 @@ class Lit h x | h -> x
 -- | Create an XPath literal value from a Haskell value.
 lit :: Lit h x => h -> Expression x
 
--- | Create a node within the given name.
+-- | Create a node with the given name.
 namedNode :: Text -> Node
 
 -- | The XPath <tt>node()</tt> function.
@@ -211,6 +211,11 @@ module HaXPath.Schematic
 -- | Schematic XPath equivalent of <a>abs</a>
 abs :: Expression Number a -> Expression Number a
 
+-- | Access the value of a node's attribute in text form (equivalent to
+--   XPath's <tt>@</tt>). It is recommend to call this function once only
+--   for each attribute in your schema. The resulting value can be re-used.
+at :: Text -> Attribute a
+
 -- | The type of an attribute.
 type Attribute a = Expression Text '[a]
 
@@ -224,7 +229,7 @@ child :: MultiNode s n -> RelativePath s n
 contains :: Union a b c => Expression Text a -> Expression Text b -> Expression Bool c
 
 -- | The XPath <tt>count()</tt> function.
-count :: IsPath p u => p s n -> Expression Number '[]
+count :: IsPath p u => p s n -> Number
 
 -- | The XPath <tt>descendant-or-self::</tt> axis.
 descendantOrSelf :: MultiNode s n -> RelativePath s n
@@ -242,7 +247,7 @@ class Filterable (t :: * -> [*] -> *)
 infixl 3 #
 
 -- | Schematic XPath equivalent of <a>fromInteger</a>
-fromInteger :: Integer -> Expression Number '[]
+fromInteger :: Integer -> Number
 
 -- | Fix a relative path to begin from the document root (i.e. create an
 --   absolute path).
@@ -266,7 +271,7 @@ lit :: Lit h x => h -> Expression x '[]
 --   types.
 data MultiNode (s :: *) (n :: [*])
 
--- | Create a node within the given name.
+-- | Create a node with the given name.
 namedNode :: Text -> Node s n
 
 -- | Schematic XPath equivalent of <a>negate</a>
@@ -301,7 +306,7 @@ type Number = Expression Number '[]
 data Path (s :: *) (n :: [*])
 
 -- | The XPath <tt>position()</tt> function.
-position :: Expression Number '[]
+position :: Number
 
 -- | A relative XPath for a schema <tt>s</tt> returning a set of nodes
 --   which may be any of the type-list <tt>n</tt>.
@@ -319,18 +324,13 @@ show :: IsPath p u => p s n -> Text
 signum :: Expression Number a -> Expression Number a
 
 -- | The XPath <tt>text()</tt> function.
-text :: Expression Text '[]
+text :: Text
 
 -- | The type of simple text expressions.
 type Text = Expression Text '[]
 
 -- | The union of two sets of types.
 class Union (l :: [*]) (m :: [*]) (lm :: [*]) | l m -> lm
-
--- | Access the value of a node's attribute in text form (equivalent to
---   XPath's <tt>@</tt>). It is recommend to call this function once only
---   for each attribute in your schema. The resulting value can be re-used.
-at :: Text -> Attribute a
 
 -- | The XPath <tt>+</tt> operator.
 (+.) :: Union a b c => Expression Number a -> Expression Number b -> Expression Number c
@@ -397,7 +397,7 @@ instance HaXPath.Schematic.NodeAttributes n '[]
 instance HaXPath.Schematic.IsPath HaXPath.Schematic.RelativePath HaXPath.RelativePath
 instance HaXPath.Schematic.IsPath HaXPath.Schematic.Path HaXPath.Path
 instance Data.String.IsString HaXPath.Schematic.Text
-instance GHC.Num.Num (HaXPath.Schematic.Expression HaXPath.Number '[])
+instance GHC.Num.Num HaXPath.Schematic.Number
 instance HaXPath.Schematic.Union '[] m m
 instance HaXPath.Schematic.Union l' m lm => HaXPath.Schematic.Union (l : l') m (l : lm)
 

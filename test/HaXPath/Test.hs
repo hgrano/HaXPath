@@ -110,7 +110,7 @@ testNum = H.TestLabel "num" . H.TestCase $ do
 testOrd :: H.Test
 testOrd = H.TestLabel "ord" . H.TestCase $ do
   H.assertEqual "<" "child::a[2 < position()]" (X.show $ X.child a # 2 <. X.position)
-  H.assertEqual "<" "child::a[2 <= position()]" (X.show $ X.child a # 2 <=. X.position)
+  H.assertEqual "<=" "child::a[2 <= position()]" (X.show $ X.child a # 2 <=. X.position)
   H.assertEqual ">" "child::a[2 > position()]" (X.show $ X.child a # 2 >. X.position)
   H.assertEqual ">=" "child::a[2 >= position()]" (X.show $ X.child a # 2 >=. X.position)
 
