@@ -15,7 +15,7 @@ HaXPath provides two core APIs: the standard API (`HaXPath` module) allows for e
 the schematic API (`HaXPath.Schematic` module) is a layer of abstraction built upon the standard API which constrains
 XPath expressions so they must follow a specifc document schema. An example of a schema is the HTML standard. There is
 an (incomplete) implementation of the schematic API for HTML in the `HaXPath.Schematic.HTML` module. The API Haddock can
-be found here under `doc/index.html`. 
+be found [here](https://htmlpreview.github.io/?https://github.com/hgrano/HaXPath/blob/master/doc/index.html).
 
 ### Standard API
 `HaXPath` modules are expected to be imported qualified as otherwise you will get name conflicts with the Prelude. The
