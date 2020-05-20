@@ -5,7 +5,7 @@
 
 module HaXPath.Schematic.HTML where
 
-import qualified Data.Text as T
+import qualified Data.Text         as T
 import qualified HaXPath.Schematic as S
 
 -- * Basic types
