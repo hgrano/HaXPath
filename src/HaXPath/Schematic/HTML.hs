@@ -13,6 +13,12 @@ import qualified HaXPath.Schematic as S
 -- | The type of HTML documents.
 data HTML
 
+-- | The type of HTML XPaths.
+type Path n = S.Path HTML n
+
+-- | The type of relative HTML XPaths.
+type RelativePath n = S.RelativePath HTML n
+
 -- * Attribute types
 
 -- | Type of the HTML @\@class@ attribute.

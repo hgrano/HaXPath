@@ -4,7 +4,7 @@
 
 -- | XPath-generating embedded domain specific language.
 @package HaXPath
-@version 0.1.0.3
+@version 0.1.0.4
 
 module HaXPath
 
@@ -405,6 +405,12 @@ module HaXPath.Schematic.HTML
 
 -- | The type of HTML documents.
 data HTML
+
+-- | The type of HTML XPaths.
+type Path n = Path HTML n
+
+-- | The type of relative HTML XPaths.
+type RelativePath n = RelativePath HTML n
 
 -- | Type of the HTML <tt>@class</tt> attribute.
 data Classname
