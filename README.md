@@ -13,9 +13,9 @@ expressions to `String` or `Text` and send them to our favourite APIs.
 ## HaXPath API
 HaXPath provides two core APIs: the standard API (`HaXPath` module) allows for expressing generic XPaths, while
 the schematic API (`HaXPath.Schematic` module) is a layer of abstraction built upon the standard API which constrains
-XPath expressions so they must follow a specifc document schema. Such a schema could include HTML for exmaple. In
-future an implementation of the schematic API for HTML will be provided. The API Haddock can be found here under
-`doc/index.html`. 
+XPath expressions so they must follow a specifc document schema. An example of a schema is the HTML standard. There is
+an (incomplete) implementation of the schematic API for HTML in the `HaXPath.Schematic.HTML` module. The API Haddock can
+be found here under `doc/index.html`. 
 
 ### Standard API
 `HaXPath` modules are expected to be imported qualified as otherwise you will get name conflicts with the Prelude. The
