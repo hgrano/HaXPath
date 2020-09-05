@@ -6,16 +6,30 @@
 {-# LANGUAGE OverloadedStrings      #-}
 
 module HaXPath(
+  (&&.),
+  (/.),
+  (//.),
+  (/=.),
+  (<.),
+  (<=.),
+  (=.),
+  (>.),
+  (>=.),
+  (||.),
+  ancestor,
   at,
   Bool,
   child,
   contains,
   count,
+  descendant,
   descendantOrSelf,
   doubleSlash,
-  Expression,
   Eq,
+  Expression,
   Filterable(..),
+  following,
+  followingSibling,
   fromRoot,
   IsPath(..),
   Lit(..),
@@ -26,22 +40,13 @@ module HaXPath(
   not,
   Number,
   Ord,
+  parent,
   Path,
   position,
   RelativePath,
   show,
   text,
-  Text,
-  (&&.),
-  (/.),
-  (//.),
-  (/=.),
-  (<.),
-  (<=.),
-  (=.),
-  (>.),
-  (>=.),
-  (||.)
+  Text
 ) where
 
 import           Data.Maybe  (isJust)
@@ -224,6 +229,8 @@ data Axis = Ancestor |
             Child |
             Descendant |
             DescendantOrSelf |
+            Following |
+            FollowingSibling |
             Parent
 
 showAxis :: Axis -> T.Text
@@ -232,6 +239,8 @@ showAxis axis = case axis of
   Child            -> "child"
   Descendant       -> "descendant"
   DescendantOrSelf -> "descendant-or-self"
+  Following        -> "following"
+  FollowingSibling -> "following-sibling"
   Parent           -> "parent"
 
 -- | Opaque representation of an XPath node.
@@ -251,13 +260,33 @@ namedNode n = Node n []
 nodeToRelativePath :: Axis -> Node -> RelativePath
 nodeToRelativePath axis n = RelativeNode P.Nothing axis n
 
+-- | The XPath @ancestor::@ axis.
+ancestor :: Node -> RelativePath
+ancestor = nodeToRelativePath Ancestor
+
 -- | The XPath @child::@ axis.
 child :: Node -> RelativePath
 child = nodeToRelativePath Child
 
+-- | The XPath @descendant::@ axis.
+descendant :: Node -> RelativePath
+descendant = nodeToRelativePath Descendant
+
 -- | The XPath @descendant-or-self::@ axis.
 descendantOrSelf :: Node -> RelativePath
 descendantOrSelf = nodeToRelativePath DescendantOrSelf
+
+-- | The XPath @following::@ axis.
+following :: Node -> RelativePath
+following = nodeToRelativePath Following
+
+-- | The XPath @following-sibling::@ axis.
+followingSibling :: Node -> RelativePath
+followingSibling = nodeToRelativePath FollowingSibling
+
+-- | The XPath @parent::@ axis.
+parent :: Node -> RelativePath
+parent = nodeToRelativePath Parent
 
 -- | The XPath @//@ operator.
 doubleSlash :: Node -> Path

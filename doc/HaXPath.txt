@@ -4,9 +4,52 @@
 
 -- | XPath-generating embedded domain specific language.
 @package HaXPath
-@version 0.1.0.4
+@version 0.1.0.6
 
 module HaXPath
+
+-- | The XPath <tt>and</tt> operator.
+(&&.) :: Expression Bool -> Expression Bool -> Expression Bool
+infixr 3 &&.
+
+-- | The XPath abbreviated <tt>/</tt> operator.
+(/.) :: IsPath p => p -> Node -> p
+infixl 2 /.
+
+-- | The XPath <tt>//</tt> operator.
+(//.) :: IsPath p => p -> Node -> p
+infixl 2 //.
+
+-- | The XPath <tt>!=</tt> operator.
+(/=.) :: Eq a => Expression a -> Expression a -> Expression Bool
+infix 4 /=.
+
+-- | The XPath <tt>&lt;</tt> operator.
+(<.) :: Ord a => Expression a -> Expression a -> Expression Bool
+infix 4 <.
+
+-- | The XPath <tt>&lt;=</tt> operator.
+(<=.) :: Ord a => Expression a -> Expression a -> Expression Bool
+infix 4 <=.
+
+-- | The XPath <tt>=</tt> operator.
+(=.) :: Eq a => Expression a -> Expression a -> Expression Bool
+infix 4 =.
+
+-- | The XPath <tt>&gt;</tt> operator.
+(>.) :: Ord a => Expression a -> Expression a -> Expression Bool
+infix 4 >.
+
+-- | The XPath <tt>&gt;=</tt> operator.
+(>=.) :: Ord a => Expression a -> Expression a -> Expression Bool
+infix 4 >=.
+
+-- | The XPath <tt>or</tt> operator.
+(||.) :: Expression Bool -> Expression Bool -> Expression Bool
+infixr 2 ||.
+
+-- | The XPath <tt>ancestor::</tt> axis.
+ancestor :: Node -> RelativePath
 
 -- | Access the value of a node's attribute in text form (equivalent to
 --   XPath's <tt>@</tt>).
@@ -24,22 +67,31 @@ contains :: Expression Text -> Expression Text -> Expression Bool
 -- | The XPath <tt>count()</tt> function.
 count :: IsPath p => p -> Expression Number
 
+-- | The XPath <tt>descendant::</tt> axis.
+descendant :: Node -> RelativePath
+
 -- | The XPath <tt>descendant-or-self::</tt> axis.
 descendantOrSelf :: Node -> RelativePath
 
 -- | The XPath <tt>//</tt> operator.
 doubleSlash :: Node -> Path
 
--- | Opaque representation of an XPath expression.
-data Expression t
-
 -- | Type class of XPath types that can be compared for equality.
 class Eq t
+
+-- | Opaque representation of an XPath expression.
+data Expression t
 class Filterable t
 
 -- | Filter a set of nodes by the given predicate.
 (#) :: Filterable t => t -> Expression Bool -> t
 infixl 3 #
+
+-- | The XPath <tt>following::</tt> axis.
+following :: Node -> RelativePath
+
+-- | The XPath <tt>following-sibling::</tt> axis.
+followingSibling :: Node -> RelativePath
 
 -- | Fix a relative path to begin from the document root (i.e. create an
 --   absolute path).
@@ -81,6 +133,9 @@ data Number
 -- | Type class of XPath types that can be ordered.
 class Eq t => Ord t
 
+-- | The XPath <tt>parent::</tt> axis.
+parent :: Node -> RelativePath
+
 -- | The type of XPaths.
 type Path = Expression NodeSet
 
@@ -99,46 +154,6 @@ text :: Expression Text
 
 -- | XPath textual (string) data type.
 data Text
-
--- | The XPath <tt>and</tt> operator.
-(&&.) :: Expression Bool -> Expression Bool -> Expression Bool
-infixr 3 &&.
-
--- | The XPath abbreviated <tt>/</tt> operator.
-(/.) :: IsPath p => p -> Node -> p
-infixl 2 /.
-
--- | The XPath <tt>//</tt> operator.
-(//.) :: IsPath p => p -> Node -> p
-infixl 2 //.
-
--- | The XPath <tt>!=</tt> operator.
-(/=.) :: Eq a => Expression a -> Expression a -> Expression Bool
-infix 4 /=.
-
--- | The XPath <tt>&lt;</tt> operator.
-(<.) :: Ord a => Expression a -> Expression a -> Expression Bool
-infix 4 <.
-
--- | The XPath <tt>&lt;=</tt> operator.
-(<=.) :: Ord a => Expression a -> Expression a -> Expression Bool
-infix 4 <=.
-
--- | The XPath <tt>=</tt> operator.
-(=.) :: Eq a => Expression a -> Expression a -> Expression Bool
-infix 4 =.
-
--- | The XPath <tt>&gt;</tt> operator.
-(>.) :: Ord a => Expression a -> Expression a -> Expression Bool
-infix 4 >.
-
--- | The XPath <tt>&gt;=</tt> operator.
-(>=.) :: Ord a => Expression a -> Expression a -> Expression Bool
-infix 4 >=.
-
--- | The XPath <tt>or</tt> operator.
-(||.) :: Expression Bool -> Expression Bool -> Expression Bool
-infixr 2 ||.
 instance HaXPath.Filterable HaXPath.Node
 instance HaXPath.Filterable HaXPath.RelativePath
 instance HaXPath.Filterable HaXPath.Path
@@ -208,129 +223,13 @@ infixr 2 ||.
 
 module HaXPath.Schematic
 
--- | Schematic XPath equivalent of <a>abs</a>
-abs :: Expression Number a -> Expression Number a
+-- | The XPath <tt>and</tt> operator.
+(&&.) :: Union a b c => Expression Bool a -> Expression Bool b -> Expression Bool c
+infixr 3 &&.
 
--- | Access the value of a node's attribute in text form (equivalent to
---   XPath's <tt>@</tt>). It is recommend to call this function once only
---   for each attribute in your schema. The resulting value can be re-used.
-at :: Text -> Attribute a
-
--- | The type of an attribute.
-type Attribute a = Expression Text '[a]
-
--- | The type of simple boolean expressions.
-type Bool = Expression Bool '[]
-
--- | The XPath <tt>child::</tt> axis.
-child :: MultiNode s n -> RelativePath s n
-
--- | The XPath <tt>contains()</tt> function.
-contains :: Union a b c => Expression Text a -> Expression Text b -> Expression Bool c
-
--- | The XPath <tt>count()</tt> function.
-count :: IsPath p u => p s n -> Number
-
--- | The XPath <tt>descendant-or-self::</tt> axis.
-descendantOrSelf :: MultiNode s n -> RelativePath s n
-
--- | The XPath <tt>//</tt> operator.
-doubleSlash :: MultiNode s n -> Path s n
-
--- | An XPath expression returning a value of type <tt>x</tt>, involving
---   zero or more attributes <tt>a</tt>.
-data Expression (x :: *) (a :: [*])
-class Filterable (t :: * -> [*] -> *)
-
--- | Filter a set of nodes by the given predicate.
-(#) :: (Filterable t, NodesAttributes n a) => t s n -> Expression Bool a -> t s n
-infixl 3 #
-
--- | Schematic XPath equivalent of <a>fromInteger</a>
-fromInteger :: Integer -> Number
-
--- | Fix a relative path to begin from the document root (i.e. create an
---   absolute path).
-fromRoot :: RelativePath s n -> Path s n
-
--- | Type class for allowing XPath-like operations. Do not create instances
---   of this class.
-class IsPath u => IsPath (t :: * -> [*] -> *) (u :: *) | t -> u
-
--- | Convert a schematic XPath to its non-schematic equivalent.
-toNonSchematicPath :: IsPath t u => t s n -> u
-
--- | Unsafely (without type checking) convert a non-schematic XPath to its
---   schematic equivalent.
-unsafeFromNonSchematicPath :: IsPath t u => u -> t s n
-
--- | Create a literal XPath value.
-lit :: Lit h x => h -> Expression x '[]
-
--- | The type of an XPath expression for returning nodes of a variety of
---   types.
-data MultiNode (s :: *) (n :: [*])
-
--- | Create a node with the given name.
-namedNode :: Text -> Node s n
-
--- | Schematic XPath equivalent of <a>negate</a>
-negate :: Expression Number a -> Expression Number a
-
--- | Type of a single XPath node.
-type Node (s :: *) (n :: *) = MultiNode s '[n]
-
--- | Witnesses that a node of type <tt>n</tt> may have an attribute of type
---   <tt>a</tt>.
-class NodeAttribute n a
-
--- | Witnesses that a node of type <tt>n</tt> may have zero or more of a
---   set of attributes <tt>a</tt>.
-class NodeAttributes (n :: *) (a :: [*])
-
--- | Witnesses that a set of nodes <tt>n</tt> may have zero or more of a
---   set of attributes <tt>a</tt>.
-class NodesAttributes (n :: [*]) (a :: [*])
-
--- | The XPath <tt>node()</tt> function.
-node :: SchemaNodes s n => MultiNode s n
-
--- | The XPath <tt>not()</tt> function.
-not :: Expression Bool a -> Expression Bool a
-
--- | The type of simple numeric expressions.
-type Number = Expression Number '[]
-
--- | The type of XPaths for a schema <tt>s</tt> returning a set of nodes
---   which may be any of the type-list <tt>n</tt>.
-data Path (s :: *) (n :: [*])
-
--- | The XPath <tt>position()</tt> function.
-position :: Number
-
--- | A relative XPath for a schema <tt>s</tt> returning a set of nodes
---   which may be any of the type-list <tt>n</tt>.
-data RelativePath (s :: *) (n :: [*])
-
--- | A given schema <tt>s</tt> may be comprised of a universe of nodes
---   <tt>n</tt>.
-class SchemaNodes (s :: *) (n :: [*]) | s -> n
-
--- | Display an XPath expression. This is useful for sending the XPath
---   expression to a separate XPath evaluator e.g. a web browser.
-show :: IsPath p u => p s n -> Text
-
--- | Schematic XPath equivalent of <a>signum</a>
-signum :: Expression Number a -> Expression Number a
-
--- | The XPath <tt>text()</tt> function.
-text :: Text
-
--- | The type of simple text expressions.
-type Text = Expression Text '[]
-
--- | The union of two sets of types.
-class Union (l :: [*]) (m :: [*]) (lm :: [*]) | l m -> lm
+-- | The XPath <tt>*</tt> operator.
+(*.) :: Union a b c => Expression Number a -> Expression Number b -> Expression Number c
+infixl 6 *.
 
 -- | The XPath <tt>+</tt> operator.
 (+.) :: Union a b c => Expression Number a -> Expression Number b -> Expression Number c
@@ -339,14 +238,6 @@ infixl 6 +.
 -- | The XPath <tt>-</tt> operator.
 (-.) :: Union a b c => Expression Number a -> Expression Number b -> Expression Number c
 infixl 6 -.
-
--- | The XPath <tt>*</tt> operator.
-(*.) :: Union a b c => Expression Number a -> Expression Number b -> Expression Number c
-infixl 6 *.
-
--- | The XPath <tt>and</tt> operator.
-(&&.) :: Union a b c => Expression Bool a -> Expression Bool b -> Expression Bool c
-infixr 3 &&.
 
 -- | The XPath (non-abbreviated) <tt>/</tt> operator.
 (./.) :: IsPath p u => p s m -> RelativePath s n -> p s n
@@ -387,6 +278,145 @@ infix 4 >=.
 -- | The XPath <tt>or</tt> operator.
 (||.) :: Union a b c => Expression Bool a -> Expression Bool b -> Expression Bool c
 infixr 2 ||.
+
+-- | Schematic XPath equivalent of <a>abs</a>
+abs :: Expression Number a -> Expression Number a
+
+-- | The XPath <tt>ancestor::</tt> axis.
+ancestor :: MultiNode s n -> RelativePath s n
+
+-- | Access the value of a node's attribute in text form (equivalent to
+--   XPath's <tt>@</tt>). It is recommend to call this function once only
+--   for each attribute in your schema. The resulting value can be re-used.
+at :: Text -> Attribute a
+
+-- | The type of an attribute.
+type Attribute a = Expression Text '[a]
+
+-- | The type of simple boolean expressions.
+type Bool = Expression Bool '[]
+
+-- | The XPath <tt>child::</tt> axis.
+child :: MultiNode s n -> RelativePath s n
+
+-- | The XPath <tt>contains()</tt> function.
+contains :: Union a b c => Expression Text a -> Expression Text b -> Expression Bool c
+
+-- | The XPath <tt>count()</tt> function.
+count :: IsPath p u => p s n -> Number
+
+-- | The XPath <tt>descendant::</tt> axis.
+descendant :: MultiNode s n -> RelativePath s n
+
+-- | The XPath <tt>descendant-or-self::</tt> axis.
+descendantOrSelf :: MultiNode s n -> RelativePath s n
+
+-- | The XPath <tt>//</tt> operator.
+doubleSlash :: MultiNode s n -> Path s n
+
+-- | An XPath expression returning a value of type <tt>x</tt>, involving
+--   zero or more attributes <tt>a</tt>.
+data Expression (x :: *) (a :: [*])
+class Filterable (t :: * -> [*] -> *)
+
+-- | Filter a set of nodes by the given predicate.
+(#) :: (Filterable t, NodesAttributes n a) => t s n -> Expression Bool a -> t s n
+infixl 3 #
+
+-- | The XPath <tt>following::</tt> axis.
+following :: MultiNode s n -> RelativePath s n
+
+-- | The XPath <tt>following-sibling::</tt> axis.
+followingSibling :: MultiNode s n -> RelativePath s n
+
+-- | Schematic XPath equivalent of <a>fromInteger</a>
+fromInteger :: Integer -> Number
+
+-- | Fix a relative path to begin from the document root (i.e. create an
+--   absolute path).
+fromRoot :: RelativePath s n -> Path s n
+
+-- | Type class for allowing XPath-like operations. Do not create instances
+--   of this class.
+class IsPath u => IsPath (t :: * -> [*] -> *) (u :: *) | t -> u
+
+-- | Convert a schematic XPath to its non-schematic equivalent.
+toNonSchematicPath :: IsPath t u => t s n -> u
+
+-- | Unsafely (without type checking) convert a non-schematic XPath to its
+--   schematic equivalent.
+unsafeFromNonSchematicPath :: IsPath t u => u -> t s n
+
+-- | Create a literal XPath value.
+lit :: Lit h x => h -> Expression x '[]
+
+-- | The type of an XPath expression for returning nodes of a variety of
+--   types.
+data MultiNode (s :: *) (n :: [*])
+
+-- | Create a node with the given name.
+namedNode :: Text -> Node s n
+
+-- | Schematic XPath equivalent of <a>negate</a>
+negate :: Expression Number a -> Expression Number a
+
+-- | Type of a single XPath node.
+type Node (s :: *) (n :: *) = MultiNode s '[n]
+
+-- | The XPath <tt>node()</tt> function.
+node :: SchemaNodes s n => MultiNode s n
+
+-- | Witnesses that a node of type <tt>n</tt> may have an attribute of type
+--   <tt>a</tt>.
+class NodeAttribute n a
+
+-- | Witnesses that a node of type <tt>n</tt> may have zero or more of a
+--   set of attributes <tt>a</tt>.
+class NodeAttributes (n :: *) (a :: [*])
+
+-- | Witnesses that a set of nodes <tt>n</tt> may have zero or more of a
+--   set of attributes <tt>a</tt>.
+class NodesAttributes (n :: [*]) (a :: [*])
+
+-- | The XPath <tt>not()</tt> function.
+not :: Expression Bool a -> Expression Bool a
+
+-- | The type of simple numeric expressions.
+type Number = Expression Number '[]
+
+-- | The XPath <tt>parent::</tt> axis.
+parent :: MultiNode s n -> RelativePath s n
+
+-- | The type of XPaths for a schema <tt>s</tt> returning a set of nodes
+--   which may be any of the type-list <tt>n</tt>.
+data Path (s :: *) (n :: [*])
+
+-- | The XPath <tt>position()</tt> function.
+position :: Number
+
+-- | A relative XPath for a schema <tt>s</tt> returning a set of nodes
+--   which may be any of the type-list <tt>n</tt>.
+data RelativePath (s :: *) (n :: [*])
+
+-- | A given schema <tt>s</tt> may be comprised of a universe of nodes
+--   <tt>n</tt>.
+class SchemaNodes (s :: *) (n :: [*]) | s -> n
+
+-- | Display an XPath expression. This is useful for sending the XPath
+--   expression to a separate XPath evaluator e.g. a web browser.
+show :: IsPath p u => p s n -> Text
+
+-- | Schematic XPath equivalent of <a>signum</a>
+signum :: Expression Number a -> Expression Number a
+
+-- | The XPath <tt>text()</tt> function.
+text :: Text
+
+-- | The type of simple text expressions.
+type Text = Expression Text '[]
+
+-- | The union of two sets of types.
+class Union (l :: [*]) (m :: [*]) (lm :: [*]) | l m -> lm
 instance HaXPath.Schematic.Filterable HaXPath.Schematic.MultiNode
 instance HaXPath.Schematic.Filterable HaXPath.Schematic.RelativePath
 instance HaXPath.Schematic.Filterable HaXPath.Schematic.Path
