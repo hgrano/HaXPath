@@ -20,6 +20,7 @@ d = X.namedNode "d"
 
 testAppend :: H.Test
 testAppend = H.TestLabel "append" . H.TestCase $ do
+  H.assertEqual "ancestor" "/ancestor::a" (X.show . X.fromRoot $ X.ancestor a)
   H.assertEqual
     "Child"
     "/descendant-or-self::node()/child::a/child::b"
@@ -32,10 +33,14 @@ testAppend = H.TestLabel "append" . H.TestCase $ do
     "Child(abbrev) with brackets"
     "child::a/child::b/child::c"
     (X.show $ X.child a ./. (X.child b /. c))
+  H.assertEqual "descendant" "/descendant::a" (X.show . X.fromRoot $ X.descendant a)
   H.assertEqual
     "Descendent or self"
     "/descendant-or-self::node()/child::a/descendant-or-self::node()/child::b"
     (X.show $ X.doubleSlash a //. b)
+  H.assertEqual "following" "/following::a" (X.show . X.fromRoot $ X.following a)
+  H.assertEqual "following" "/following-sibling::a" (X.show . X.fromRoot $ X.followingSibling a)
+  H.assertEqual "parent" "/parent::a" (X.show . X.fromRoot $ X.parent a)
 
 testAttribute :: H.Test
 testAttribute = H.TestLabel "attribute" . H.TestCase $

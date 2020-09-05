@@ -66,6 +66,7 @@ four = 4
 
 testAppend :: H.Test
 testAppend = H.TestLabel "append" . H.TestCase $ do
+  H.assertEqual "ancestor" "/ancestor::a" (S.show . S.fromRoot $ S.ancestor a)
   H.assertEqual
     "Child"
     "/descendant-or-self::node()/child::a/child::b"
@@ -82,6 +83,9 @@ testAppend = H.TestLabel "append" . H.TestCase $ do
     "Descendent or self"
     "/descendant-or-self::node()/child::a/descendant-or-self::node()/child::b"
     (S.show $ S.doubleSlash a //. b)
+  H.assertEqual "following" "/following::a" (S.show . S.fromRoot $ S.following a)
+  H.assertEqual "following" "/following-sibling::a" (S.show . S.fromRoot $ S.followingSibling a)
+  H.assertEqual "parent" "/parent::a" (S.show . S.fromRoot $ S.parent a)
 
 testAttribute :: H.Test
 testAttribute = H.TestLabel "attribute" . H.TestCase $

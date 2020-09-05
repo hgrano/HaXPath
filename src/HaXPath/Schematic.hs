@@ -11,44 +11,10 @@
 {-# LANGUAGE UndecidableInstances   #-}
 
 module HaXPath.Schematic(
-  abs,
-  at,
-  Attribute,
-  Bool,
-  child,
-  contains,
-  count,
-  descendantOrSelf,
-  doubleSlash,
-  Expression,
-  Filterable(..),
-  fromInteger,
-  fromRoot,
-  IsPath(..),
-  lit,
-  MultiNode,
-  namedNode,
-  negate,
-  Node,
-  NodeAttribute,
-  NodeAttributes,
-  NodesAttributes,
-  node,
-  not,
-  Number,
-  Path,
-  position,
-  RelativePath,
-  SchemaNodes,
-  show,
-  signum,
-  text,
-  Text,
-  Union,
+  (&&.),
+  (*.),
   (+.),
   (-.),
-  (*.),
-  (&&.),
   (./.),
   (/.),
   (//.),
@@ -58,7 +24,46 @@ module HaXPath.Schematic(
   (=.),
   (>.),
   (>=.),
-  (||.)
+  (||.),
+  abs,
+  ancestor,
+  at,
+  Attribute,
+  Bool,
+  child,
+  contains,
+  count,
+  descendant,
+  descendantOrSelf,
+  doubleSlash,
+  Expression,
+  Filterable(..),
+  following,
+  followingSibling,
+  fromInteger,
+  fromRoot,
+  IsPath(..),
+  lit,
+  MultiNode,
+  namedNode,
+  negate,
+  Node,
+  node,
+  NodeAttribute,
+  NodeAttributes,
+  NodesAttributes,
+  not,
+  Number,
+  parent,
+  Path,
+  position,
+  RelativePath,
+  SchemaNodes,
+  show,
+  signum,
+  text,
+  Text,
+  Union
 ) where
 
 import qualified Data.String as S
@@ -299,13 +304,33 @@ infixl 2 //.
 fromRoot :: RelativePath s n -> Path s n
 fromRoot = unsafeFromNonSchematicPath . X.fromRoot . toNonSchematicPath
 
+-- | The XPath @ancestor::@ axis.
+ancestor :: MultiNode s n -> RelativePath s n
+ancestor (Node n) = unsafeFromNonSchematicPath $ X.ancestor n
+
 -- | The XPath @child::@ axis.
 child :: MultiNode s n -> RelativePath s n
 child (Node n) = unsafeFromNonSchematicPath $ X.child n
 
+-- | The XPath @descendant::@ axis.
+descendant :: MultiNode s n -> RelativePath s n
+descendant (Node n) = unsafeFromNonSchematicPath $ X.descendant n
+
 -- | The XPath @descendant-or-self::@ axis.
 descendantOrSelf :: MultiNode s n -> RelativePath s n
 descendantOrSelf (Node n) = unsafeFromNonSchematicPath $ X.descendantOrSelf n
+
+-- | The XPath @following::@ axis.
+following :: MultiNode s n -> RelativePath s n
+following (Node n) = unsafeFromNonSchematicPath $ X.following n
+
+-- | The XPath @following-sibling::@ axis.
+followingSibling :: MultiNode s n -> RelativePath s n
+followingSibling (Node n) = unsafeFromNonSchematicPath $ X.followingSibling n
+
+-- | The XPath @parent::@ axis.
+parent :: MultiNode s n -> RelativePath s n
+parent (Node n) = unsafeFromNonSchematicPath $ X.parent n
 
 -- | The XPath @//@ operator.
 doubleSlash :: MultiNode s n -> Path s n
