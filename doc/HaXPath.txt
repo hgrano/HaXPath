@@ -4,7 +4,7 @@
 
 -- | XPath-generating embedded domain specific language.
 @package HaXPath
-@version 0.1.0.6
+@version 0.1.1.0
 
 module HaXPath
 

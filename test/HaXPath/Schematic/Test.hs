@@ -79,6 +79,7 @@ testAppend = H.TestLabel "append" . H.TestCase $ do
     "Child(abbrev) with brackets"
     "child::a/child::b/child::c"
     (S.show $ S.child a ./. (S.child b /. c))
+  H.assertEqual "descendant" "/descendant::a" (S.show . S.fromRoot $ S.descendant a)
   H.assertEqual
     "Descendent or self"
     "/descendant-or-self::node()/child::a/descendant-or-self::node()/child::b"
@@ -215,6 +216,11 @@ testPredicate = H.TestLabel "path" . H.TestCase $ do
     "Two filters"
     "(child::a/child::b)[@id = 'id'][position() = 2]"
     (S.show $ (S.child a /. b) # id' =. ("id" :: S.Text) # S.position =. two)
+
+  H.assertEqual
+    "Issue #8"
+    "(/descendant-or-self::node()/child::a)[position() = 2]/child::b"
+    (S.show $ S.doubleSlash a # S.position =. two /. b)
 
 suite :: H.Test
 suite = H.TestLabel "HaXPath.Schematic" $ H.TestList [
