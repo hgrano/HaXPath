@@ -72,7 +72,8 @@ data Expression' = Function T.Text [Expression'] |
                    Attribute T.Text |
                    TextLiteral T.Text |
                    IntegerLiteral P.Integer |
-                   Path PathType RelativePath [Expression']
+                   Path PathType RelativePath [Expression'] |
+                   BracketAroundLeftPath Expression' RelativePath [Expression']
 
 showExpression :: Expression' -> T.Text
 showExpression (Function f es) = f <> "(" <> args <> ")"
@@ -80,9 +81,10 @@ showExpression (Function f es) = f <> "(" <> args <> ")"
     args = T.intercalate ", " $ showExpression <$> es
 showExpression (Operator o a b) = showWithBracket a <> " " <> o <> " " <> showWithBracket b
   where
-    needsBracket (Operator _ _ _) = P.True
-    needsBracket (Path _ _ _)     = P.True
-    needsBracket _                = P.False
+    needsBracket (Operator _ _ _)              = P.True
+    needsBracket (Path _ _ _)                  = P.True
+    needsBracket (BracketAroundLeftPath _ _ _) = P.True
+    needsBracket _                             = P.False
 
     showWithBracket e = if needsBracket e then "(" <> showExpression e <> ")" else showExpression e
 
@@ -94,11 +96,14 @@ showExpression (Path t p es) =
         Relative -> ""
         Absolute -> "/"
   in
-  let s = prefix <> showRelativePath p in
-  if P.not (P.null es) then
-    "(" <> s <> ")" <> showExpressions es
-  else
-    s
+  showWithFilters (prefix <> showRelativePath p) es
+showExpression (BracketAroundLeftPath lp rp es) =
+  showWithFilters (showExpression lp <> showExpression (Path Absolute rp [])) es
+
+showWithFilters :: T.Text -> [Expression'] -> T.Text
+showWithFilters s es
+  | P.not (P.null es) = "(" <> s <> ")" <> showExpressions es
+  | P.otherwise = s
 
 showExpressionBracketed :: Expression' -> T.Text
 showExpressionBracketed e = "[" <> showExpression e <> "]"
@@ -363,13 +368,18 @@ nonPathError :: a
 nonPathError = P.error "HaXPath internal error: unexpected non-Path expression"
 
 instance IsPath Path where
-  Expression (Path t rp es) ./. rp' = Expression $ Path t (rp ./. rp') es
+  Expression p@(Path _ _ _) ./. rp' = Expression $ BracketAroundLeftPath p rp' []
+  Expression p@(BracketAroundLeftPath _ _ _) ./. rp' = Expression $ BracketAroundLeftPath p rp' []
   _ ./. _ = nonPathError
 
   toPath = P.id
 
 instance Filterable Path where
-  Expression (Path context rp es) # e = Expression . Path context rp $ unExpression e : es
+  Expression (Path context rp es) # e = Expression $ Path context rp (unExpression e : es)
+  Expression (BracketAroundLeftPath innerPath rp es) # e = Expression $ BracketAroundLeftPath
+    innerPath
+    rp
+    (unExpression e : es)
   _ # _ = nonPathError
 
 -- | Fix a relative path to begin from the document root (i.e. create an absolute path).
