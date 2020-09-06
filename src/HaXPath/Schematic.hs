@@ -35,6 +35,7 @@ module HaXPath.Schematic(
   count,
   descendant,
   descendantOrSelf,
+  doesNotContain,
   doubleSlash,
   Expression,
   Filterable(..),
@@ -105,6 +106,10 @@ text = Expression X.text
 -- | The XPath @contains()@ function.
 contains :: Union a b c => Expression X.Text a -> Expression X.Text b -> Expression X.Bool c
 x `contains` y = Expression $ unExpression x `X.contains` unExpression y
+
+-- | The opposite of `contains`.
+doesNotContain :: Union a b c => Expression X.Text a -> Expression X.Text b -> Expression X.Bool c
+x `doesNotContain` y = Expression $ unExpression x `X.doesNotContain` unExpression y
 
 -- | The XPath @count()@ function.
 count :: IsPath p u => p s n -> Number

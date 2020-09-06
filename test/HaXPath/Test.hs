@@ -97,6 +97,10 @@ testFunction = H.TestLabel "function" . H.TestCase $ do
     "count() [absolute]"
     "child::a[count(/child::b/child::c[@id = 'id']) = 3]"
     (X.show $ X.child a # X.count (X.fromRoot $ X.child b /. c # X.at "id" =. "id") =. 3)
+  H.assertEqual
+    "doesNotContain()"
+    "child::a[not(contains(text(), 'hello'))]"
+    (X.show $ X.child a # X.text `X.doesNotContain` "hello")
   H.assertEqual "not()" "child::a[not(@id = 'id')]" (X.show $ X.child a # X.not (X.at "id" =. "id"))
 
 testNum :: H.Test

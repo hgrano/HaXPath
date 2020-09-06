@@ -13,11 +13,17 @@ import qualified HaXPath.Schematic as S
 -- | The type of HTML documents.
 data HTML
 
+-- | The type of a HTML XPath expression for returning nodes of a variety of types.
+type MultiNode = S.MultiNode HTML
+
+-- | Type of a single HTML XPath node.
+type Node n = S.Node HTML n
+
 -- | The type of HTML XPaths.
-type Path n = S.Path HTML n
+type Path = S.Path HTML
 
 -- | The type of relative HTML XPaths.
-type RelativePath n = S.RelativePath HTML n
+type RelativePath = S.RelativePath HTML
 
 -- * Attribute types
 
@@ -83,7 +89,7 @@ title = S.at "title"
 data A
 
 -- | Select an @\<a\>@.
-a :: S.Node HTML A
+a :: Node A
 a = S.namedNode "a"
 
 -- Attributes specific to <a>
@@ -93,98 +99,98 @@ instance S.NodeAttribute A Href
 data Body
 
 -- | Select a @\<body\>@.
-body :: S.Node HTML Body
+body :: Node Body
 body = S.namedNode "body"
 
 -- | Type of the HTML @\<div\>@ node.
 data Div
 
 -- | Select a @\<div\>@.
-div :: S.Node HTML Div
+div :: Node Div
 div = S.namedNode "div"
 
 -- | Type of the HTML @\<h1\>@ node.
 data H1
 
 -- | Select a @\<h1\>@.
-h1 :: S.Node HTML H1
+h1 :: Node H1
 h1 = S.namedNode "h1"
 
 -- | Type of the HTML @\<h2\>@ node.
 data H2
 
 -- | Select a @\<h2\>@.
-h2 :: S.Node HTML H2
+h2 :: Node H2
 h2 = S.namedNode "h2"
 
 -- | Type of the HTML @\<h3\>@ node.
 data H3
 
 -- | Select a @\<h3\>@.
-h3 :: S.Node HTML H3
+h3 :: Node H3
 h3 = S.namedNode "h3"
 
 -- | Type of the HTML @\<input\>@ node.
 data Input
 
 -- | Select an @\<input\>@.
-input :: S.Node HTML Input
+input :: Node Input
 input = S.namedNode "input"
 
 -- | Type of the HTML @\<option\>@ node.
 data Option
 
 -- | Select an @\<option\>@.
-option :: S.Node HTML Option
+option :: Node Option
 option = S.namedNode "option"
 
 -- | Type of the HTML @\<select\>@ node.
 data Select
 
 -- | Select a @\<select\>@.
-select :: S.Node HTML Select
+select :: Node Select
 select = S.namedNode "select"
 
 -- | Type of the HTML @\<span\>@ node.
 data Span
 
 -- | Select a @\<span>.
-span :: S.Node HTML Span
+span :: Node Span
 span = S.namedNode "span"
 
 -- | Type of the HTML @\<strong\>@ node.
 data Strong
 
 -- | Select a @\<strong>.
-strong :: S.Node HTML Strong
+strong :: Node Strong
 strong = S.namedNode "strong"
 
 -- | Type of the HTML @\<sup\>@ node.
 data Sup
 
 -- | Select a @\<sup>.
-sup :: S.Node HTML Sup
+sup :: Node Sup
 sup = S.namedNode "sup"
 
 -- | Type of the HTML @\<table\>@ node.
 data Table
 
 -- | Select a @\<table>.
-table :: S.Node HTML Table
+table :: Node Table
 table = S.namedNode "table"
 
 -- | Type of the HTML @\<tbody\>@ node.
 data Tbody
 
 -- | Select a @\<tbody\>@.
-tbody :: S.Node HTML Tbody
+tbody :: Node Tbody
 tbody = S.namedNode "tbody"
 
 -- | Type of the HTML @\<td\>@ node.
 data Td
 
 -- | Select a @\<td\>@.
-td :: S.Node HTML Td
+td :: Node Td
 td = S.namedNode "td"
 
 -- Attributes specific to <td>
@@ -194,7 +200,7 @@ instance S.NodeAttribute Td Colspan
 data Tr
 
 -- | Select a @\<tr\>@.
-tr :: S.Node HTML Tr
+tr :: Node Tr
 tr = S.namedNode "tr"
 
 instance S.SchemaNodes HTML '[A, Body, Div, H1, H2, H3, Input, Option, Select, Span, Strong, Sup, Table, Tbody, Td, Tr]
