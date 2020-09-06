@@ -24,6 +24,7 @@ module HaXPath(
   count,
   descendant,
   descendantOrSelf,
+  doesNotContain,
   doubleSlash,
   Eq,
   Expression,
@@ -211,6 +212,10 @@ text = Expression $ Function "text" []
 -- | The XPath @contains()@ function.
 contains :: Expression Text -> Expression Text -> Expression Bool
 contains x y = Expression . Function "contains" $ [unExpression x, unExpression y]
+
+-- | The opposite of `contains`.
+doesNotContain :: Expression Text -> Expression Text -> Expression Bool
+doesNotContain x y = not $ contains x y
 
 -- | The XPath @count()@ function.
 count :: IsPath p => p -> Expression Number

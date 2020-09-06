@@ -1,7 +1,7 @@
 cabal-version: 1.12
 
 name:           HaXPath
-version:        0.1.1.0
+version:        0.1.1.1
 description:    XPath-generating embedded domain specific language.
 homepage:       https://github.com/hgrano/HaXPath
 bug-reports:    https://github.com/hgrano/HaXPath/issues
