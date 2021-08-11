@@ -67,7 +67,7 @@ data Expression' = Function T.Text [Expression'] |
                    Attribute T.Text |
                    TextLiteral T.Text |
                    IntegerLiteral P.Integer |
-                   Path PathType RelativePath [Expression']
+                   Path PathType RelativePath [Expression'] deriving (P.Show)
 
 showExpression :: Expression' -> T.Text
 showExpression (Function f es) = f <> "(" <> args <> ")"
@@ -102,7 +102,7 @@ showExpressions :: [Expression'] -> T.Text
 showExpressions = T.concat . P.fmap showExpressionBracketed . P.reverse
 
 -- | Opaque representation of an XPath expression.
-newtype Expression t = Expression { unExpression :: Expression' }
+newtype Expression t = Expression { unExpression :: Expression' } deriving (P.Show)
 
 class Lit h x | h -> x where
   -- | Create an XPath literal value from a Haskell value.
@@ -224,7 +224,7 @@ data Axis = Ancestor |
             Child |
             Descendant |
             DescendantOrSelf |
-            Parent
+            Parent  deriving (P.Show)
 
 showAxis :: Axis -> T.Text
 showAxis axis = case axis of
@@ -238,7 +238,7 @@ showAxis axis = case axis of
 data Node = Node {
   nName      :: !T.Text,
   nPredicate :: ![Expression']
-}
+}  deriving (P.Show)
 
 -- | The XPath @node()@ function.
 node :: Node
@@ -265,7 +265,7 @@ doubleSlash n = fromRoot $ descendantOrSelf node /. n
 
 -- | A relative XPath, i.e. an XPath that is relative to the current node.
 data RelativePath = RelativeNode (P.Maybe RelativePath) Axis Node |
-                    Bracketed (P.Maybe RelativePath) RelativePath [Expression']
+                    Bracketed (P.Maybe RelativePath) RelativePath [Expression']  deriving (P.Show)
 
 showPrev :: P.Maybe RelativePath -> T.Text
 showPrev = P.maybe "" $ \rp -> showRelativePath rp <> "/"
@@ -280,7 +280,7 @@ showRelativePath (Bracketed prev rp pred)
   | P.null pred = showPrev prev <> showRelativePath rp
   | P.otherwise = showPrev prev <> "(" <> showRelativePath rp <> ")" <> showExpressions pred
 
-data PathType = Relative | Absolute
+data PathType = Relative | Absolute  deriving (P.Show)
 
 -- | Type class for allowing XPath-like operations. Do not create instances of this class.
 class IsPath t where

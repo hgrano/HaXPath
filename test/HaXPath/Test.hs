@@ -165,6 +165,11 @@ testPredicate = H.TestLabel "path" . H.TestCase $ do
     "Two filters"
     "(child::a/child::b)[@id = 'id'][position() = 2]"
     (X.show $ (X.child a /. b) # X.at "id" =. "id" # X.position =. 2)
+  
+  H.assertEqual
+    "Filter and then extend"
+    "/descendant-or-self::node()/child::a[position() = 2]/child::b"
+    (X.show $ X.doubleSlash a # X.position =. 2 /. b)
 
 suite :: H.Test
 suite = H.TestLabel "HaXPath" $ H.TestList [
