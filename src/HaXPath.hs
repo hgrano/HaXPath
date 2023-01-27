@@ -155,7 +155,7 @@ showWithPredicates s es
 
 -- | Display an XPath expression. This is useful to sending the XPath expression to a separate XPath evaluator e.g.
 -- a web browser.
-show :: IsExpression a => a -> T.Text
+show :: IsCtx c => Path c -> T.Text
 show = showExpression . toExpression
 
 -- | Type class for Haskell values which can be converted to a XPath (literal) values.
