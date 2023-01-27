@@ -342,7 +342,7 @@ root = DocumentRoot
 -- XPath's abbreviated syntax. Library users should not create instances of this class.
 class SlashOperator p q r | p q -> r where
   (/.) :: p -> q -> r
-  infixl 2 /.
+  infixl 8 /.
 
 instance IsCtx c => SlashOperator (Path c) (Path CurrentCtx) (Path c) where
   pa /. nextPa = Path $ case toExpression pa of
@@ -372,7 +372,7 @@ instance SlashOperator DocumentRoot Node (Path RootCtx) where
 -- XPath's abbreviated syntax. Library users should not create instances of this class.
 class DoubleSlashOperator p q r | p q -> r where
   (//.) :: p -> q -> r
-  infixl 2 //.
+  infixl 8 //.
 
 instance IsCtx c => DoubleSlashOperator (Path c) (Path CurrentCtx) (Path c) where
   pa //. nextPa = Path $ case toExpression pa of
@@ -447,13 +447,13 @@ fromRootCtx = changeCtx FromRootCtx
 -- | The union of two node-sets.
 (|.) :: IsCtx c => Path c -> Path c -> Path c
 x |. y = Path $ Operator "|" (toExpression x) (toExpression y)
-infix 5 |.
+infix 7 |.
 
 -- | Type class to allow either 'Node's or 'Path's. This is useful when only 'Node's are present as the axes can be
 -- omitted when using XPath's abbreviated syntax. Library users should not create instances of this class.
 class Filterable a where
   (#) :: a -> [Bool] -> a
-  infixl 3 #
+  infixl 9 #
 
 instance IsCtx c => Filterable (Path c) where
   xp # preds =

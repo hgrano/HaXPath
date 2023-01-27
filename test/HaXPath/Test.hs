@@ -180,10 +180,10 @@ testPredicate = H.TestLabel "predicates" . H.TestCase $ do
     "/(descendant-or-self::node()/child::a[position() = 2])/child::b"
     (X.show $ X.root //. a # [X.position =. 2] /. b)
 
--- testUnion :: H.Test
--- testUnion = H.TestLabel "union" . H.TestCase $ do
---   H.assertEqual "Union absolute paths" "(/child::a/child::b) | (/child::c)" (X.show $ X.root /. a /. b |. X.root /. c)
---   pure ()
+testUnion :: H.Test
+testUnion = H.TestLabel "union" . H.TestCase $ do
+  H.assertEqual "Union absolute paths" "(/child::a/child::b) | (/child::c)" (X.show $ X.root /. a /. b |. X.root /. c)
+  H.assertEqual "Union relative paths" "(child::a/child::b) | (child::c)" (X.show $ a /. b |. X.child c)
 
 suite :: H.Test
 suite = H.TestLabel "HaXPath" $ H.TestList [
@@ -194,5 +194,6 @@ suite = H.TestLabel "HaXPath" $ H.TestList [
     testFunction,
     testNum,
     testOrd,
-    testPredicate
+    testPredicate,
+    testUnion
   ]
