@@ -118,58 +118,83 @@ newtype Path c axis n rn  = Path { unPath :: X.Path c }
 instance S.IsString (Text as) where
   fromString = Text . S.fromString
 
-class X.IsExpression x => ToExpression (t :: [*] -> *) (x :: *) | t -> x where
-  toExpression :: t as -> x
+class ToExpression t where
+  type Expression t
 
-instance ToExpression Bool X.Bool where
+  toExpression :: t -> Expression t
+
+instance ToExpression (Bool as) where
+  type Expression (Bool as) = X.Bool
+
   toExpression = unBool
 
-instance ToExpression Number X.Number where
+instance ToExpression (Number as) where
+  type Expression (Number as) = X.Number
+
   toExpression = unNumber
 
-instance ToExpression Text X.Text where
+instance ToExpression (Text as) where
+  type Expression (Text as) = X.Text
+
   toExpression = unText
 
-class X.IsExpression x => FromExpression (x :: *) (t :: [*] -> *) where
-  fromExpression :: x -> t n
+instance ToExpression (Path c axis n rn) where
+  type Expression (Path c axis n rn) = X.Path c
 
-instance FromExpression X.Bool Bool where
+  toExpression = unPath
+
+instance ToExpression (Node n) where
+  type Expression (Node n) = X.Node
+
+  toExpression = unNode
+
+class FromExpression x t where
+  fromExpression :: x -> t
+
+instance FromExpression X.Bool (Bool as) where
   fromExpression = Bool
 
-instance FromExpression X.Number Number where
+instance FromExpression X.Number (Number as) where
   fromExpression = Number
 
-instance FromExpression X.Text Text where
+instance FromExpression X.Text (Text as) where
   fromExpression = Text
 
+instance FromExpression (X.Path c) (Path c axis n rn) where
+  fromExpression = Path
+
+-- make sure to hide this function!
+instance FromExpression X.Node (Node n) where
+  fromExpression = Node
+
 -- | The XPath @text()@ function.
-text :: Text a
+text :: Text as
 text = Text X.text
 
 -- | The XPath @contains()@ function.
-contains :: Text a -> Text a -> Bool a
+contains :: Text as -> Text as -> Bool as
 contains = binary X.contains
 
 -- | The opposite of 'contains'.
-doesNotContain :: Text a -> Text a -> Bool a
+doesNotContain :: Text as -> Text as -> Bool as
 doesNotContain = binary X.doesNotContain
 
 -- | The XPath @count()@ function.
-count :: X.IsCtx c => Path c axis n rn -> Number a
+count :: X.IsCtx c => Path c axis n rn -> Number as
 count = Number . X.count . unPath
 
 -- | The XPath @position()@ function.
-position :: Number a
+position :: Number as
 position = Number X.position
 
-unary :: (ToExpression t x, ToExpression u y, FromExpression y u) => (x -> y) -> t as -> u as
+unary :: (ToExpression t, ToExpression u, FromExpression (Expression u) u) => (Expression t -> Expression u) -> t -> u
 unary op x = fromExpression (op $ toExpression x)
 
-binary :: (ToExpression t x, ToExpression u y, ToExpression v z, FromExpression z v) =>
-          (x -> y -> z) ->
-          t as ->
-          u as ->
-          v as
+binary :: (ToExpression t, ToExpression u, ToExpression v, FromExpression (Expression v) v) =>
+          (Expression t -> Expression u -> Expression v) ->
+          t ->
+          u ->
+          v
 binary op x y = fromExpression (toExpression x `op` toExpression y)
 
 -- | The XPath @or@ operator.
@@ -209,32 +234,32 @@ class IsAttribute a where
 --   Number a =. Number b = Bool (a X.=. b)
 
 -- | The XPath @=@ operator.
-(=.) :: (ToExpression t x, X.Eq x) => t as -> t as -> Bool as
+(=.) :: (ToExpression (t as), X.Eq (Expression (t as))) => t as -> t as -> Bool as
 (=.) = binary (X.=.)
 infix 4 =.
 
 -- | The XPath @!=@ operator.
-(/=.) :: (ToExpression t x, X.Eq x) => t as -> t as -> Bool as
+(/=.) :: (ToExpression (t as), X.Eq (Expression (t as))) => t as -> t as -> Bool as
 (/=.) = binary (X./=.)
 infix 4 /=.
 
 -- | The XPath @<@ operator.
-(<.) :: (ToExpression t x, X.Ord x) => t as -> t as -> Bool as
+(<.) :: (ToExpression (t as), X.Ord (Expression (t as))) => t as -> t as -> Bool as
 (<.) = binary (X.<.)
 infix 4 <.
 
 -- | The XPath @<=@ operator.
-(<=.) :: (ToExpression t x, X.Ord x) => t as -> t as -> Bool as
+(<=.) :: (ToExpression (t as), X.Ord (Expression (t as))) => t as -> t as -> Bool as
 (<=.) = binary (X.<=.)
 infix 4 <=.
 
 -- | The XPath @>@ operator.
-(>.) :: (ToExpression t x, X.Ord x) => t as -> t as -> Bool as
+(>.) :: (ToExpression (t as), X.Ord (Expression (t as))) => t as -> t as -> Bool as
 (>.) = binary (X.>.)
 infix 4 >.
 
 -- | The XPath @>=@ operator.
-(>=.) :: (ToExpression t x, X.Ord x) => t as -> t as -> Bool as
+(>=.) :: (ToExpression (t as), X.Ord (Expression (t as))) => t as -> t as -> Bool as
 (>=.) = binary (X.>=.)
 infix 4 >=.
 
@@ -304,7 +329,8 @@ namedNode = Node . X.namedNode . nodeName
 -- node :: SchemaNodes s n => MultiNode s n
 -- node = Node $ X.namedNode "node()"
 
-class HasRelation n axis n'
+class HasRelatives n axis where
+  type Relatives n axis :: [*]
 
 data Ancestor
 data Child
@@ -315,8 +341,11 @@ data FollowingSibling
 data Parent
 data Self
 
-instance HasRelation (Node n) Self (Node n)
-instance HasRelation (Node n) DescendantOrSelf (Node n)
+instance HasRelatives (Node n) Self where
+  type Relatives (Node n) Self = '[n]
+
+-- instance HasRelatives (Node n) DescendantOrSelf where
+--   type Relatives (Node n)
 --instance HasRelation (Node n) Descendant d => HasRelation (Node n) DescendantOrSelf d
 
 newtype DocumentRoot s = DocumentRoot X.DocumentRoot 
@@ -324,32 +353,65 @@ newtype DocumentRoot s = DocumentRoot X.DocumentRoot
 root :: DocumentRoot s
 root = DocumentRoot X.root
 
-class SlashOperator p q r | p q -> r where
-  (/.) :: p -> q -> r
-  infixl 8 /.
+class (ToExpression p, X.PathLike (Expression p)) => PathLike p where
+  type Axis p
+  type SelectNode p
+  type ReturnNode p
 
-instance (HasRelation rn axis' n', X.IsCtx c) =>
-          SlashOperator (Path c axis n rn) (Path X.CurrentCtx axis' n' rn') (Path c axis n rn') where
-  Path pa /. Path nextPa = Path (pa X./. nextPa)
+instance X.IsCtx c => PathLike (Path c axis n rn) where
+  --type Context (Path c axis n rn) = c
+  type Axis (Path c axis n rn) = axis
+  type SelectNode (Path c axis n rn) = n
+  type ReturnNode (Path c axis n rn) = rn
 
-instance (HasRelation rn Child n', X.IsCtx c) =>
-          SlashOperator (Path c axis n rn) (Node n') (Path c axis n n') where
-  Path pa /. Node n = Path (pa X./. n)
+instance PathLike (Node n) where
+  --type Context (Node n) = X.CurrentCtx
+  type Axis (Node n) = Child
+  type SelectNode (Node n) = n
+  type ReturnNode (Node n) = n
 
-instance (HasRelation n axis n') =>
-          SlashOperator (Node n) (Path X.CurrentCtx axis n' rn) (Path X.CurrentCtx Child n rn) where
-  Node n /. Path pa = Path (n X./. pa)
+(/.) :: (Member (SelectNode q) (Relatives (ReturnNode p) (Axis q)),
+          PathLike p,
+          PathLike q,
+          X.SlashOperator (Expression p) (Expression q)) =>
+          p ->
+          q ->
+          Path (X.Context (Expression p)) (Axis p) (SelectNode p) (ReturnNode q)
+(/.) = binary (X./.)
 
-instance (HasRelation n Child n') => SlashOperator (Node n) (Node n') (Path X.CurrentCtx Child n n') where
-  Node n /. Node n' = Path (n X./. n')
+-- class (PathLike p, PathLike q) => SlashOperator p q where
+--   -- type SlashOutput p q
 
-instance (HasRelation (DocumentRoot s) axis n) =>
-          SlashOperator (DocumentRoot s) (Path X.CurrentCtx axis n rn) (Path X.RootCtx axis n rn) where
-  DocumentRoot r /. Path p = Path (r X./. p)
+--   (/.) :: (Member (SelectNode q) (Relatives (ReturnNode p) (Axis q))) =>
+--           p ->
+--           q ->
+--           Path (Context p) (Axis p) (SelectNode p) (ReturnNode q)
+--   infixl 8 /.
 
-instance (HasRelation (DocumentRoot s) Child n) =>
-          SlashOperator (DocumentRoot s) (Node n) (Path X.RootCtx Child n n) where
-  DocumentRoot r /. Node n = Path (r X./. n)
+-- instance X.IsCtx c => SlashOperator (Path c axis n rn) (Path X.CurrentCtx axis' n' rn') where
+--   -- type SlashOutput (Path c axis n rn) (Path X.CurrentCtx axis' n' rn') = Path c axis n rn'
+
+--   Path pa /. Path nextPa = Path (pa X./. nextPa)
+
+-- instance X.IsCtx c => SlashOperator (Path c axis n rn) (Node n') where
+--   -- type SlashOutput (Path c axis n rn) (Node n') = Path c axis n n'
+
+--   Path pa /. Node n = Path (pa X./. n)
+
+-- instance (HasRelation n axis n') =>
+--           SlashOperator (Node n) (Path X.CurrentCtx axis n' rn) (Path X.CurrentCtx Child n rn) where
+--   Node n /. Path pa = Path (n X./. pa)
+
+-- instance (HasRelation n Child n') => SlashOperator (Node n) (Node n') (Path X.CurrentCtx Child n n') where
+--   Node n /. Node n' = Path (n X./. n')
+
+-- instance (HasRelation (DocumentRoot s) axis n) =>
+--           SlashOperator (DocumentRoot s) (Path X.CurrentCtx axis n rn) (Path X.RootCtx axis n rn) where
+--   DocumentRoot r /. Path p = Path (r X./. p)
+
+-- instance (HasRelation (DocumentRoot s) Child n) =>
+--           SlashOperator (DocumentRoot s) (Node n) (Path X.RootCtx Child n n) where
+--   DocumentRoot r /. Node n = Path (r X./. n)
 
 -- -- | A relative XPath for a schema 's' returning a set of nodes which may be any of the type-list 'n'.
 -- newtype RelativePath (s :: *) (n :: [*]) = RelativePath  { unRelativePath :: X.RelativePath }

@@ -4,6 +4,7 @@
 {-# LANGUAGE NoImplicitPrelude      #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module HaXPath(
   (#),
@@ -44,11 +45,13 @@ module HaXPath(
   Ord,
   parent,
   Path,
+  PathLike(..),
   position,
   root,
   RootCtx,
   self,
   show,
+  SlashOperator,
   text,
   Text,
   true
@@ -340,13 +343,27 @@ data DocumentRoot = DocumentRoot
 root :: DocumentRoot
 root = DocumentRoot
 
+class IsCtx (Context p) => PathLike p where
+  type Context p
+
+instance IsCtx c => PathLike (Path c) where
+  type Context (Path c) = c
+
+instance PathLike Node where
+  type Context Node = CurrentCtx
+
+instance PathLike DocumentRoot where
+  type Context DocumentRoot = RootCtx
+
 -- | Type class for the XPath @/@ operator. It can operate on multiple types as the axes can be inferred based on
 -- XPath's abbreviated syntax. Library users should not create instances of this class.
-class SlashOperator p q r | p q -> r where
-  (/.) :: p -> q -> r
+class (PathLike p, PathLike q) => SlashOperator p q where
+  --type SlashOperatorOutput p q
+
+  (/.) :: p -> q -> Path (Context p)
   infixl 8 /.
 
-instance IsCtx c => SlashOperator (Path c) (Path CurrentCtx) (Path c) where
+instance IsCtx c => SlashOperator (Path c) (Path CurrentCtx) where
   pa /. nextPa = Path $ case toExpression pa of
     PathFrom begin fstPath P.Nothing preds -> PathFrom begin fstPath (P.Just $ toExpression nextPa) preds
     _ -> PathFrom
@@ -355,19 +372,19 @@ instance IsCtx c => SlashOperator (Path c) (Path CurrentCtx) (Path c) where
       (P.Just $ toExpression nextPa)
       []
 
-instance IsCtx c => SlashOperator (Path c) Node (Path c) where
+instance IsCtx c => SlashOperator (Path c) Node where
   pa /. n = pa /. child n
 
-instance SlashOperator Node (Path CurrentCtx) (Path CurrentCtx) where
+instance SlashOperator Node (Path CurrentCtx) where
   n /. pa = child n /. pa
 
-instance SlashOperator Node Node (Path CurrentCtx) where
+instance SlashOperator Node Node where
   n /. nextNode = child n /. child nextNode
 
-instance SlashOperator DocumentRoot (Path CurrentCtx) (Path RootCtx) where
+instance SlashOperator DocumentRoot (Path CurrentCtx) where
   DocumentRoot /. p = fromRootCtx p
 
-instance SlashOperator DocumentRoot Node (Path RootCtx) where
+instance SlashOperator DocumentRoot Node where
   DocumentRoot /. n = fromRootCtx (child n)
 
 -- | Type class for the XPath @//@ operator. It can operate on multiple types as the axes can be inferred based on
