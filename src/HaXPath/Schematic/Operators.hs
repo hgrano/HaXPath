@@ -1,19 +1,19 @@
-module HaXPath.Schematic.Operators where
---   (#),
---   (&&.),
---   (*.),
---   (+.),
---   (-.),
---   (./.),
---   (/.),
---   (//.),
---   (/=.),
---   (<.),
---   (<=.),
---   (=.),
---   (>.),
---   (>=.),
---   (||.)
--- ) where
+module HaXPath.Schematic.Operators (
+  (#),
+  (&&.),
+  -- (*.),
+  -- (+.),
+  -- (-.),
+  -- (./.),
+  (/.),
+  -- (//.),
+  (/=.),
+  (<.),
+  (<=.),
+  (=.),
+  (>.),
+  (>=.),
+  (||.)
+) where
 
--- import           HaXPath.Schematic
+import           HaXPath.Schematic

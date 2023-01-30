@@ -2,49 +2,92 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies             #-}
 
-module HaXPath.Schematic.Test where --(suite) where
+module HaXPath.Schematic.Test where
 
--- import qualified HaXPath.Schematic           as S
--- import           HaXPath.Schematic.Operators
--- import qualified Test.HUnit                  as H
+--import Data.HList.CommonMain
+import           Data.Proxy (Proxy(Proxy))
+import qualified HaXPath.Schematic           as S
+import           HaXPath.Schematic.Operators
+import qualified Test.HUnit                  as H
 
--- data Schema
+data Schema
 
--- data A
+data A
 
--- a :: S.Node Schema A
--- a = S.namedNode "a"
+instance S.IsNode A where
+  nodeName _ = "a"
 
--- data B
+a :: S.Node A
+a = S.namedNode (Proxy :: Proxy A)
 
--- b :: S.Node Schema B
--- b = S.namedNode "b"
+data B
 
--- data C
+instance S.IsNode B where
+  nodeName _ = "b"
 
--- c :: S.Node Schema B
--- c = S.namedNode "c"
+b :: S.Node B
+b = S.namedNode (Proxy :: Proxy B)
 
--- data D
+data C
 
--- d :: S.Node Schema D
--- d = S.namedNode "d"
+instance S.IsNode C where
+  nodeName _ = "c"
 
--- instance S.SchemaNodes Schema '[A, B, C, D]
+c :: S.Node C
+c = S.namedNode (Proxy :: Proxy C)
 
--- data Id
+data D
 
--- id' :: S.Attribute Id
--- id' = S.at "id"
+instance S.IsNode D where
+  nodeName _ = "d"
 
--- instance S.NodeAttribute A Id
--- instance S.NodeAttribute B Id
--- instance S.NodeAttribute C Id
--- instance S.NodeAttribute D Id
+d :: S.Node D
+d = S.namedNode (Proxy :: Proxy D)
+
+root :: S.DocumentRoot Schema
+root = S.root
+
+instance S.HasRelation (S.DocumentRoot Schema) S.Child A
+
+instance S.HasRelation A S.Child B
+
+instance S.HasRelation B S.Child C
+
+data Id = Id
+
+instance S.IsAttribute Id where
+  attributeName _ = "id"
+
+id' :: S.Member Id as => S.Text as
+id' = S.at (Proxy :: Proxy Id)
+
+data Attr2
+
+instance S.IsAttribute Attr2 where
+  attributeName _ = "attr2"
+
+attr2 :: S.Member Attr2 as => S.Text as
+attr2 = S.at (Proxy :: Proxy Attr2)
+
+-- myEq :: HEq a b 'True => a -> b -> ()
+-- myEq _ _ = ()
+
+-- res :: ()
+-- res = myEq Id Id
+
+instance S.HasAttributes A where
+  type As A = '[Attr2, Id]
+
+-- instance S.HasAttributes B '[Id]
+-- instance S.HasAttributes C '[Id]
+-- instance S.HasAttributes D '[Id]
 
 -- abc :: S.Text
--- abc = "abc"
+-- abc = "ab`c"
 
 -- def :: S.Text
 -- def = "def"
@@ -64,8 +107,8 @@ module HaXPath.Schematic.Test where --(suite) where
 -- four :: S.Number
 -- four = 4
 
--- testAppend :: H.Test
--- testAppend = H.TestLabel "append" . H.TestCase $ do
+testAppend :: H.Test
+testAppend = H.TestLabel "append" . H.TestCase $ do
 --   H.assertEqual "ancestor" "/ancestor::a" (S.show . S.fromRoot $ S.ancestor a)
 --   H.assertEqual
 --     "Child"
@@ -75,10 +118,10 @@ module HaXPath.Schematic.Test where --(suite) where
 --     "Child(abbrev)"
 --     "/descendant-or-self::node()/child::a/child::b"
 --     (S.show $ S.doubleSlash a /. b)
---   H.assertEqual
---     "Child(abbrev) with brackets"
---     "child::a/child::b/child::c"
---     (S.show $ S.child a ./. (S.child b /. c))
+  H.assertEqual
+    "Child(abbrev) with brackets"
+    "child::a/(child::b/child::c)"
+    (S.show $ a /. (b /. c))
 --   H.assertEqual "descendant" "/descendant::a" (S.show . S.fromRoot $ S.descendant a)
 --   H.assertEqual
 --     "Descendent or self"
@@ -88,9 +131,9 @@ module HaXPath.Schematic.Test where --(suite) where
 --   H.assertEqual "following" "/following-sibling::a" (S.show . S.fromRoot $ S.followingSibling a)
 --   H.assertEqual "parent" "/parent::a" (S.show . S.fromRoot $ S.parent a)
 
--- testAttribute :: H.Test
--- testAttribute = H.TestLabel "attribute" . H.TestCase $
---   H.assertEqual "Attribute equality" "child::a[@id = 'hello']" (S.show $ S.child a # id' =. hello)
+testAttribute :: H.Test
+testAttribute = H.TestLabel "attribute" . H.TestCase $ do
+  H.assertEqual "Attribute equality" "child::a[@id = 'hello']" (S.show $ (S.child a # [id' =. attr2]))
 
 -- testBool :: H.Test
 -- testBool = H.TestLabel "bool" . H.TestCase $ do
@@ -226,14 +269,14 @@ module HaXPath.Schematic.Test where --(suite) where
 --     "(/descendant-or-self::node()/child::a)[position() = 2]/child::b"
 --     (S.show $ S.doubleSlash a # S.position =. two /. b)
 
--- suite :: H.Test
--- suite = H.TestLabel "HaXPath.Schematic" $ H.TestList [
---     testAppend,
---     testAttribute,
---     testBool,
---     testContext,
---     testFunction,
---     testNum,
---     testOrd,
---     testPredicate
---   ]
+suite :: H.Test
+suite = H.TestLabel "HaXPath.Schematic" $ H.TestList [
+    testAppend,
+    testAttribute
+    -- testBool,
+    -- testContext,
+    -- testFunction,
+    -- testNum,
+    -- testOrd,
+    -- testPredicate
+  ]
