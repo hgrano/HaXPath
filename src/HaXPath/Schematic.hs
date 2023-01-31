@@ -148,6 +148,11 @@ instance ToExpression (Node n) where
 
   toExpression = unNode
 
+instance ToExpression (DocumentRoot s) where
+  type Expression (DocumentRoot s) = X.DocumentRoot
+
+  toExpression = unDocumentRoot
+
 class FromExpression x t where
   fromExpression :: x -> t
 
@@ -166,6 +171,9 @@ instance FromExpression (X.Path c) (Path c axis n rn) where
 -- make sure to hide this function!
 instance FromExpression X.Node (Node n) where
   fromExpression = Node
+
+instance FromExpression X.DocumentRoot (DocumentRoot n) where
+  fromExpression = DocumentRoot
 
 -- | The XPath @text()@ function.
 text :: Text as
@@ -348,7 +356,7 @@ instance HasRelatives (Node n) Self where
 --   type Relatives (Node n)
 --instance HasRelation (Node n) Descendant d => HasRelation (Node n) DescendantOrSelf d
 
-newtype DocumentRoot s = DocumentRoot X.DocumentRoot 
+newtype DocumentRoot s = DocumentRoot { unDocumentRoot :: X.DocumentRoot } 
 
 root :: DocumentRoot s
 root = DocumentRoot X.root
@@ -369,6 +377,11 @@ instance PathLike (Node n) where
   type Axis (Node n) = Child
   type SelectNode (Node n) = n
   type ReturnNode (Node n) = n
+
+instance PathLike (DocumentRoot s) where
+  type Axis (DocumentRoot s) = Self
+  type SelectNode (DocumentRoot s) = DocumentRoot s
+  type ReturnNode (DocumentRoot s) = DocumentRoot s
 
 (/.) :: (Member (SelectNode q) (Relatives (ReturnNode p) (Axis q)),
           PathLike p,

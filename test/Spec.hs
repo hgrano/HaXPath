@@ -5,11 +5,6 @@ import qualified HaXPath.Test           as X
 import qualified System.Exit            as E
 import qualified Test.HUnit             as H
 
-import qualified HaXPath.Schematic as Z
-data E
-
-instance Z.HasRelation S.A Z.Child E
-
 main :: IO ()
 main = do
   counts <- H.runTestTT $ H.TestList [X.suite, S.suite]

@@ -51,11 +51,14 @@ d = S.namedNode (Proxy :: Proxy D)
 root :: S.DocumentRoot Schema
 root = S.root
 
-instance S.HasRelation (S.DocumentRoot Schema) S.Child A
+instance S.HasRelatives (S.DocumentRoot Schema) S.Child where
+  type Relatives (S.DocumentRoot Schema) S.Child = '[B]
 
-instance S.HasRelation A S.Child B
+instance S.HasRelatives A S.Child where
+  type Relatives A S.Child = '[B]
 
-instance S.HasRelation B S.Child C
+instance S.HasRelatives B S.Child where
+  type Relatives B S.Child = '[C]
 
 data Id = Id
 
