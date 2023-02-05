@@ -8,7 +8,6 @@
 
 module HaXPath.Schematic.Test where
 
---import Data.HList.CommonMain
 import           Data.Proxy (Proxy(Proxy))
 import qualified HaXPath.Schematic           as S
 import           HaXPath.Schematic.Operators
@@ -51,14 +50,11 @@ d = S.namedNode (Proxy :: Proxy D)
 root :: S.DocumentRoot Schema
 root = S.root
 
-instance S.HasRelatives (S.DocumentRoot Schema) S.Child where
-  type Relatives (S.DocumentRoot Schema) S.Child = '[B]
+type instance S.Relatives (S.DocumentRoot Schema) S.Child = '[B]
 
-instance S.HasRelatives A S.Child where
-  type Relatives A S.Child = '[B]
+type instance S.Relatives A S.Child = '[B]
 
-instance S.HasRelatives B S.Child where
-  type Relatives B S.Child = '[C]
+type instance S.Relatives B S.Child = '[C]
 
 data Id = Id
 
@@ -76,14 +72,7 @@ instance S.IsAttribute Attr2 where
 attr2 :: S.Member Attr2 as => S.Text as
 attr2 = S.at (Proxy :: Proxy Attr2)
 
--- myEq :: HEq a b 'True => a -> b -> ()
--- myEq _ _ = ()
-
--- res :: ()
--- res = myEq Id Id
-
-instance S.HasAttributes A where
-  type As A = '[Attr2, Id]
+type instance S.Attributes A = '[Attr2, Id]
 
 -- instance S.HasAttributes B '[Id]
 -- instance S.HasAttributes C '[Id]
@@ -112,7 +101,7 @@ instance S.HasAttributes A where
 
 testAppend :: H.Test
 testAppend = H.TestLabel "append" . H.TestCase $ do
---   H.assertEqual "ancestor" "/ancestor::a" (S.show . S.fromRoot $ S.ancestor a)
+  -- H.assertEqual "ancestor" "/ancestor::a" (S.show $ S.fromRoot $ S.ancestor a)
 --   H.assertEqual
 --     "Child"
 --     "/descendant-or-self::node()/child::a/child::b"
@@ -136,7 +125,7 @@ testAppend = H.TestLabel "append" . H.TestCase $ do
 
 testAttribute :: H.Test
 testAttribute = H.TestLabel "attribute" . H.TestCase $ do
-  H.assertEqual "Attribute equality" "child::a[@id = 'hello']" (S.show $ (S.child a # [id' =. attr2]))
+  H.assertEqual "Attribute equality" "child::a[@id = 'hello']" (S.show $ S.child a # [id' =. "hello"])
 
 -- testBool :: H.Test
 -- testBool = H.TestLabel "bool" . H.TestCase $ do

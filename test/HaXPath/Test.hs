@@ -44,38 +44,38 @@ testAppend = H.TestLabel "append" . H.TestCase $ do
 
 testAttribute :: H.Test
 testAttribute = H.TestLabel "attribute" . H.TestCase $
-  H.assertEqual "Attribute equality" "child::a[@id = 'hello']" (X.show $ X.child a # [X.at "id" =. "hello"])
+  H.assertEqual "Attribute equality" "a[@id = 'hello']" (X.show $ a # [X.at "id" =. "hello"])
 
 testBool :: H.Test
 testBool = H.TestLabel "bool" . H.TestCase $ do
   H.assertEqual
     "and"
-    "child::a[(text() = 'abc') and contains(@id, 'def')]"
-    (X.show $ X.child a # [X.text =. "abc" &&. X.at "id" `X.contains` "def"])
+    "a[(text() = 'abc') and contains(@id, 'def')]"
+    (X.show $ a # [X.text =. "abc" &&. X.at "id" `X.contains` "def"])
   H.assertEqual
     "or"
-    "child::a[(text() = 'abc') or contains(@id, 'def')]"
-    (X.show $ X.child a # [X.text =. "abc" ||. X.at "id" `X.contains` "def"])
+    "a[(text() = 'abc') or contains(@id, 'def')]"
+    (X.show $ a # [X.text =. "abc" ||. X.at "id" `X.contains` "def"])
   H.assertEqual
     "not"
-    "child::a[(text() = 'abc') or contains(@id, 'def')]"
-    (X.show $ X.child a # [X.text =. "abc" ||. X.at "id" `X.contains` "def"])
+    "a[(text() = 'abc') or contains(@id, 'def')]"
+    (X.show $ a # [X.text =. "abc" ||. X.at "id" `X.contains` "def"])
   H.assertEqual
     "!="
-    "child::a[text() != 'abc']"
-    (X.show $ X.child a # [X.text /=. "abc"])
+    "a[text() != 'abc']"
+    (X.show $ a # [X.text /=. "abc"])
   H.assertEqual
     "true"
-    "child::a[true()]"
-    (X.show $ X.child a # [X.true])
+    "a[true()]"
+    (X.show $ a # [X.true])
   H.assertEqual
     "false"
-    "child::a[false()]"
-    (X.show $ X.child a # [X.false])
+    "a[false()]"
+    (X.show $ a # [X.false])
   H.assertEqual
     "false"
-    "child::a[false() and (text() != 'abc')]"
-    (X.show $ X.child a # [X.false &&. X.text /=. "abc"])
+    "a[false() and (text() != 'abc')]"
+    (X.show $ a # [X.false &&. X.text /=. "abc"])
 
 testContext :: H.Test
 testContext = H.TestLabel "context" . H.TestCase $ do
@@ -84,44 +84,44 @@ testContext = H.TestLabel "context" . H.TestCase $ do
 
 testFunction :: H.Test
 testFunction = H.TestLabel "function" . H.TestCase $ do
-  H.assertEqual "text()" "child::a[text() = 'hello']" (X.show $ X.child a # [X.text =. "hello"])
+  H.assertEqual "text()" "a[text() = 'hello']" (X.show $ a # [X.text =. "hello"])
   H.assertEqual
     "contains()"
-    "child::a[contains(text(), 'hello')]"
-    (X.show $ X.child a # [X.text `X.contains` "hello"])
+    "a[contains(text(), 'hello')]"
+    (X.show $ a # [X.text `X.contains` "hello"])
   H.assertEqual
     "count() [relative]"
-    "child::a[count(child::b/child::c[@id = 'id']) = 3]"
-    (X.show $ X.child a # [X.count (b /. c # [X.at "id" =. "id"]) =. 3])
+    "a[count(child::b/child::c[@id = 'id']) = 3]"
+    (X.show $ a # [X.count (b /. c # [X.at "id" =. "id"]) =. 3])
   H.assertEqual
     "count() [absolute]"
-    "child::a[count(/child::b/child::c[@id = 'id']) = 3]"
-    (X.show $ X.child a # [X.count (X.root /. b /. c # [X.at "id" =. "id"]) =. 3])
+    "a[count(/child::b/child::c[@id = 'id']) = 3]"
+    (X.show $ a # [X.count (X.root /. b /. c # [X.at "id" =. "id"]) =. 3])
   H.assertEqual
     "doesNotContain()"
-    "child::a[not(contains(text(), 'hello'))]"
-    (X.show $ X.child a # [X.text `X.doesNotContain` "hello"])
-  H.assertEqual "not()" "child::a[not(@id = 'id')]" (X.show $ X.child a # [X.not (X.at "id" =. "id")])
+    "a[not(contains(text(), 'hello'))]"
+    (X.show $ a # [X.text `X.doesNotContain` "hello"])
+  H.assertEqual "not()" "a[not(@id = 'id')]" (X.show $ a # [X.not (X.at "id" =. "id")])
 
 testNum :: H.Test
 testNum = H.TestLabel "num" . H.TestCase $ do
-  H.assertEqual "+" "child::a[(position() + 1) = 2]" (X.show $ X.child a # [X.position + 1 =. 2])
-  H.assertEqual "+" "child::a[(position() - 1) = 2]" (X.show $ X.child a # [X.position - 1 =. 2])
-  H.assertEqual "*" "child::a[(position() * 2) = 4]" (X.show $ X.child a # [X.position * 2 =. 4])
+  H.assertEqual "+" "a[(position() + 1) = 2]" (X.show $ a # [X.position + 1 =. 2])
+  H.assertEqual "+" "a[(position() - 1) = 2]" (X.show $ a # [X.position - 1 =. 2])
+  H.assertEqual "*" "a[(position() * 2) = 4]" (X.show $ a # [X.position * 2 =. 4])
   H.assertEqual
     "signum"
-    "child::a[position() = (((0 - 4) > 0) - ((0 - 4) < 0))]"
-    (X.show $ X.child a # [X.position =. signum (-4)])
+    "a[position() = (((0 - 4) > 0) - ((0 - 4) < 0))]"
+    (X.show $ a # [X.position =. signum (-4)])
   H.assertEqual
-    "abs" "child::a[position() = ((0 - 4) * (((0 - 4) > 0) - ((0 - 4) < 0)))]"
-    (X.show $ X.child a # [X.position =. abs (-4)])
+    "abs" "a[position() = ((0 - 4) * (((0 - 4) > 0) - ((0 - 4) < 0)))]"
+    (X.show $ a # [X.position =. abs (-4)])
 
 testOrd :: H.Test
 testOrd = H.TestLabel "ord" . H.TestCase $ do
-  H.assertEqual "<" "child::a[2 < position()]" (X.show $ X.child a # [2 <. X.position])
-  H.assertEqual "<=" "child::a[2 <= position()]" (X.show $ X.child a # [2 <=. X.position])
-  H.assertEqual ">" "child::a[2 > position()]" (X.show $ X.child a # [2 >. X.position])
-  H.assertEqual ">=" "child::a[2 >= position()]" (X.show $ X.child a # [2 >=. X.position])
+  H.assertEqual "<" "a[2 < position()]" (X.show $ a # [2 <. X.position])
+  H.assertEqual "<=" "a[2 <= position()]" (X.show $ a # [2 <=. X.position])
+  H.assertEqual ">" "a[2 > position()]" (X.show $ a # [2 >. X.position])
+  H.assertEqual ">=" "a[2 >= position()]" (X.show $ a # [2 >=. X.position])
 
 testPredicate :: H.Test
 testPredicate = H.TestLabel "predicates" . H.TestCase $ do
@@ -183,7 +183,7 @@ testPredicate = H.TestLabel "predicates" . H.TestCase $ do
 testUnion :: H.Test
 testUnion = H.TestLabel "union" . H.TestCase $ do
   H.assertEqual "Union absolute paths" "(/child::a/child::b) | (/child::c)" (X.show $ X.root /. a /. b |. X.root /. c)
-  H.assertEqual "Union relative paths" "(child::a/child::b) | (child::c)" (X.show $ a /. b |. X.child c)
+  H.assertEqual "Union relative paths" "(child::a/child::b) | (c)" (X.show $ a /. b |. c)
 
 suite :: H.Test
 suite = H.TestLabel "HaXPath" $ H.TestList [

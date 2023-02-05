@@ -1,16 +1,15 @@
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE NoImplicitPrelude      #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeOperators #-}
 
 module HaXPath(
-  (#),
   (&&.),
-  (/.),
-  (//.),
   (/=.),
   (<.),
   (<=.),
@@ -24,14 +23,17 @@ module HaXPath(
   Bool,
   child,
   contains,
+  Context,
   count,
   CurrentCtx,
   descendant,
   descendantOrSelf,
   DocumentRoot,
   doesNotContain,
+  DoubleSlashOperator(..),
   Eq,
   false,
+  Filterable(..),
   following,
   followingSibling,
   IsCtx,
@@ -45,13 +47,13 @@ module HaXPath(
   Ord,
   parent,
   Path,
-  PathLike(..),
+  PathLike,
   position,
   root,
   RootCtx,
   self,
   show,
-  SlashOperator,
+  SlashOperator(..),
   text,
   Text,
   true
@@ -160,26 +162,38 @@ showWithPredicates s es
 
 -- | Display an XPath expression. This is useful to sending the XPath expression to a separate XPath evaluator e.g.
 -- a web browser.
-show :: IsCtx c => Path c -> T.Text
+show :: (PathLike p, IsExpression p) => p -> T.Text
 show = showExpression . toExpression
 
 -- | Type class for Haskell values which can be converted to a XPath (literal) values.
-class IsExpression x => Literal h x | h -> x where
+class IsExpression (AsExpression h) => Literal h where
+  type AsExpression h
   -- | Create an XPath value from a Haskell value.
-  lit :: h -> x
+  lit :: h -> AsExpression h
 
-instance Literal P.Bool Bool where
+instance Literal P.Bool where
+  type AsExpression P.Bool = Bool
+
   lit P.True = true
   lit P.False = false
 
-instance Literal P.Integer Number where
+instance Literal P.Integer where
+  type AsExpression P.Integer = Number
+
   lit = Number . IntegerLiteral
 
-instance Literal T.Text Text where
+instance Literal T.Text where
+  type AsExpression T.Text = Text
+
   lit = Text . TextLiteral
 
+instance Literal P.String where
+  type AsExpression P.String = Text
+
+  lit = Text . TextLiteral . T.pack
+
 instance S.IsString Text where
-  fromString = lit . T.pack
+  fromString = lit
 
 boolToInt :: Bool -> Number
 boolToInt (Bool b) = Number b
@@ -343,23 +357,16 @@ data DocumentRoot = DocumentRoot
 root :: DocumentRoot
 root = DocumentRoot
 
-class IsCtx (Context p) => PathLike p where
-  type Context p
+type family Context p where
+  Context (Path c) = c
+  Context Node = CurrentCtx
+  Context DocumentRoot = RootCtx
 
-instance IsCtx c => PathLike (Path c) where
-  type Context (Path c) = c
-
-instance PathLike Node where
-  type Context Node = CurrentCtx
-
-instance PathLike DocumentRoot where
-  type Context DocumentRoot = RootCtx
+type PathLike p = IsCtx (Context p)
 
 -- | Type class for the XPath @/@ operator. It can operate on multiple types as the axes can be inferred based on
 -- XPath's abbreviated syntax. Library users should not create instances of this class.
 class (PathLike p, PathLike q) => SlashOperator p q where
-  --type SlashOperatorOutput p q
-
   (/.) :: p -> q -> Path (Context p)
   infixl 8 /.
 
@@ -389,11 +396,11 @@ instance SlashOperator DocumentRoot Node where
 
 -- | Type class for the XPath @//@ operator. It can operate on multiple types as the axes can be inferred based on
 -- XPath's abbreviated syntax. Library users should not create instances of this class.
-class DoubleSlashOperator p q r | p q -> r where
-  (//.) :: p -> q -> r
+class (PathLike p, PathLike q) => DoubleSlashOperator p q where
+  (//.) :: p -> q -> Path (Context p)
   infixl 8 //.
 
-instance IsCtx c => DoubleSlashOperator (Path c) (Path CurrentCtx) (Path c) where
+instance IsCtx c => DoubleSlashOperator (Path c) (Path CurrentCtx) where
   pa //. nextPa = Path $ case toExpression pa of
     PathFrom begin fstPath P.Nothing preds -> PathFrom begin fstPath nextPa' preds
     _ -> PathFrom (toPathBegin (Proxy :: Proxy c)) (toExpression $ fromCurrentCtx pa) nextPa' []
@@ -401,19 +408,19 @@ instance IsCtx c => DoubleSlashOperator (Path c) (Path CurrentCtx) (Path c) wher
     where
       nextPa' = P.Just . toExpression $ descendantOrSelf node /. nextPa
 
-instance IsCtx c => DoubleSlashOperator (Path c) Node (Path c) where
-  pa //. n = pa /. descendantOrSelf node /. child n
+instance IsCtx c => DoubleSlashOperator (Path c) Node where
+  pa //. n = pa /. descendantOrSelf node /. n
 
-instance DoubleSlashOperator Node (Path CurrentCtx) (Path CurrentCtx) where
+instance DoubleSlashOperator Node (Path CurrentCtx) where
   n //. pa = child n //. pa
 
-instance DoubleSlashOperator Node Node (Path CurrentCtx) where
+instance DoubleSlashOperator Node Node where
   n //. nextNode = child n //. child nextNode
 
-instance DoubleSlashOperator DocumentRoot (Path CurrentCtx) (Path RootCtx) where
+instance DoubleSlashOperator DocumentRoot (Path CurrentCtx) where
   DocumentRoot //. p = fromRootCtx (descendantOrSelf node) /. p
 
-instance DoubleSlashOperator DocumentRoot Node (Path RootCtx) where
+instance DoubleSlashOperator DocumentRoot Node where
   DocumentRoot //. n = fromRootCtx (descendantOrSelf node /. n)
 
 locationStep :: Axis -> Node -> Path c
@@ -464,14 +471,14 @@ fromRootCtx :: Path CurrentCtx -> Path RootCtx
 fromRootCtx = changeCtx FromRootCtx
 
 -- | The union of two node-sets.
-(|.) :: IsCtx c => Path c -> Path c -> Path c
+(|.) :: (PathLike p, PathLike q, IsExpression p, IsExpression q, Context p ~ Context q) => p -> q -> Path (Context p)
 x |. y = Path $ Operator "|" (toExpression x) (toExpression y)
 infix 7 |.
 
 -- | Type class to allow either 'Node's or 'Path's. This is useful when only 'Node's are present as the axes can be
 -- omitted when using XPath's abbreviated syntax. Library users should not create instances of this class.
-class Filterable a where
-  (#) :: a -> [Bool] -> a
+class (IsExpression p, PathLike p) => Filterable p where
+  (#) :: p -> [Bool] -> p
   infixl 9 #
 
 instance IsCtx c => Filterable (Path c) where
