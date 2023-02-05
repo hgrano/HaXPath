@@ -6,7 +6,7 @@ module HaXPath.Schematic.Operators (
   -- (-.),
   -- (./.),
   (/.),
-  -- (//.),
+  (//.),
   (/=.),
   (<.),
   (<=.),

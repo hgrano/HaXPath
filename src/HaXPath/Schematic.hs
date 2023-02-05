@@ -34,6 +34,7 @@ module HaXPath.Schematic (
   DescendantOrSelf,
   DocumentRoot,
   doesNotContain,
+  false,
   following,
   Following,
   followingSibling,
@@ -47,6 +48,7 @@ module HaXPath.Schematic (
   not,
   Number,
   parent,
+  Parent,
   Path,
   PathLike,
   position,
@@ -55,7 +57,8 @@ module HaXPath.Schematic (
   show,
   text,
   Text,
-  ToNonSchematic(..)
+  ToNonSchematic(..),
+  true
 ) where
 
 import           Data.HList.CommonMain (HMember)
@@ -69,6 +72,12 @@ type Member x xs = HMember x xs 'P.True
 
 -- | The type of simple boolean expressions.
 newtype Bool (as :: [*]) = Bool { unBool :: X.Bool }
+
+true :: Bool as
+true = Bool X.true
+
+false :: Bool as
+false = Bool X.false
 
 -- | The type of simple numeric expressions.
 newtype Number (as :: [*]) = Number { unNumber :: X.Number }
@@ -176,12 +185,12 @@ binary :: (ToNonSchematic t, ToNonSchematic u, ToNonSchematic v, FromNonSchemati
 binary op x y = fromNonSchematic (toNonSchematic x `op` toNonSchematic y)
 
 -- | The XPath @or@ operator.
-(||.) :: Bool a -> Bool a -> Bool a
+(||.) :: Bool as -> Bool as -> Bool as
 (||.) = binary (X.||.)
 infixr 2 ||.
 
 -- | The XPath @and@ operator.
-(&&.) :: Bool a -> Bool a -> Bool a
+(&&.) :: Bool as -> Bool as -> Bool as
 (&&.) = binary (X.&&.)
 infixr 3 &&.
 
@@ -259,6 +268,8 @@ type instance Relatives n Self = '[n]
 newtype DocumentRoot s = DocumentRoot { unDocumentRoot :: X.DocumentRoot } 
 
 type instance Relatives (DocumentRoot s) Ancestor = '[]
+type instance Relatives (DocumentRoot s) Following = '[]
+type instance Relatives (DocumentRoot s) FollowingSibling = '[]
 type instance Relatives (DocumentRoot s) Parent = '[]
 
 root :: DocumentRoot s
@@ -287,6 +298,7 @@ type PathLike p = (ToNonSchematic p, X.PathLike (NonSchematic p))
           q ->
           Path (X.Context (NonSchematic p)) (Axis p) (SelectNode p) (ReturnNode q)
 (/.) = binary (X./.)
+infixl 8 /.
 
 (//.) :: (Member (SelectNode q) (Relatives (ReturnNode p) Descendant),
           PathLike p,
@@ -296,6 +308,7 @@ type PathLike p = (ToNonSchematic p, X.PathLike (NonSchematic p))
           q ->
           Path (X.Context (NonSchematic p)) (Axis p) (SelectNode p) (ReturnNode q)
 (//.) = binary (X.//.)
+infixl 8 //.
 
 type family Attributes n :: [*]
 
@@ -305,6 +318,7 @@ type family Attributes n :: [*]
         X.Filterable (NonSchematic p)) =>
         p -> [Bool (Attributes (ReturnNode p))] -> p
 p # preds = fromNonSchematic $ toNonSchematic p X.# (toNonSchematic <$> preds)
+infixl 9 #
 
 -- | The XPath @ancestor::@ axis.
 ancestor :: Node n -> Path X.CurrentCtx Ancestor n n
