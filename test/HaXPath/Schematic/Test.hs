@@ -64,6 +64,8 @@ type instance S.Relatives A S.Following = '[A, B, C, D]
 
 type instance S.Relatives A S.FollowingSibling = '[A]
 
+type instance S.Relatives B S.Ancestor = '[A]
+
 type instance S.Relatives B S.Child = '[C]
 
 type instance S.Relatives B S.Descendant = '[C]
@@ -85,8 +87,8 @@ data Attr2
 instance S.IsAttribute Attr2 where
   attributeName _ = "attr2"
 
--- attr2 :: S.Member Attr2 as => S.Text as
--- attr2 = S.at (Proxy :: Proxy Attr2)
+attr2 :: S.Member Attr2 as => S.Text as
+attr2 = S.at (Proxy :: Proxy Attr2)
 
 type instance S.Attributes A = '[Attr2, Id]
 type instance S.Attributes B = '[Id]
@@ -95,15 +97,15 @@ type instance S.Attributes D = '[Id]
 
 testAppend :: H.Test
 testAppend = H.TestLabel "append" . H.TestCase $ do
-  -- H.assertEqual "ancestor" "/ancestor::a" (S.show $ S.fromRoot $ S.ancestor a)
---   H.assertEqual
---     "Child"
---     "/descendant-or-self::node()/child::a/child::b"
---     (S.show . S.fromRoot $ S.descendantOrSelf S.node /. S.child a /. S.child b)
---   H.assertEqual
---     "Child(abbrev)"
---     "/descendant-or-self::node()/child::a/child::b"
---     (S.show $ S.doubleSlash a /. b)
+  H.assertEqual "ancestor" "/(child::a/child::b)/ancestor::a" (S.show $ root /. a /. b /. S.ancestor a)
+  H.assertEqual
+    "Child"
+    "/(descendant-or-self::node()/child::a)/child::b"
+    (S.show $ root //. S.child a /. S.child b)
+  H.assertEqual
+    "Child(abbrev)"
+    "/(descendant-or-self::node()/child::a)/child::b"
+    (S.show $ root //. a /. b)
   H.assertEqual
     "Child(abbrev) with brackets"
     "child::a/(child::b/child::c)"
@@ -119,25 +121,26 @@ testAppend = H.TestLabel "append" . H.TestCase $ do
 
 testAttribute :: H.Test
 testAttribute = H.TestLabel "attribute" . H.TestCase $ do
-  H.assertEqual "Attribute equality" "a[@id = 'hello']" (S.show $ a # [id' =. "hello"])
+  H.assertEqual "Attribute equality" "a[@id = \"hello\"]" (S.show $ a # [id' =. "hello"])
+  H.assertEqual "Attribute equality" "a[@attr2 = \"hello\"]" (S.show $ a # [attr2 =. "hello"])
 
 testBool :: H.Test
 testBool = H.TestLabel "bool" . H.TestCase $ do
   H.assertEqual
     "and"
-    "a[(text() = 'abc') and contains(@id, 'def')]"
+    "a[(text() = \"abc\") and contains(@id, \"def\")]"
     (S.show $ a # [S.text =. "abc" &&. id' `S.contains` "def"])
   H.assertEqual
     "or"
-    "a[(text() = 'abc') or contains(@id, 'def')]"
+    "a[(text() = \"abc\") or contains(@id, \"def\")]"
     (S.show $ a # [S.text =. "abc" ||. id' `S.contains` "def"])
   H.assertEqual
     "not"
-    "a[(text() = 'abc') or not(contains(@id, 'def'))]"
+    "a[(text() = \"abc\") or not(contains(@id, \"def\"))]"
     (S.show $ a # [S.text =. "abc" ||. id' `S.doesNotContain` "def"])
   H.assertEqual
     "!="
-    "a[text() != 'abc']"
+    "a[text() != \"abc\"]"
     (S.show $ a # [S.text /=. "abc"])
   H.assertEqual
     "true"
@@ -149,7 +152,7 @@ testBool = H.TestLabel "bool" . H.TestCase $ do
     (S.show $ a # [S.false])
   H.assertEqual
     "false"
-    "a[false() and (text() != 'abc')]"
+    "a[false() and (text() != \"abc\")]"
     (S.show $ a # [S.false &&. S.text /=. "abc"])
 
 testContext :: H.Test
@@ -159,24 +162,24 @@ testContext = H.TestLabel "context" . H.TestCase $ do
 
 testFunction :: H.Test
 testFunction = H.TestLabel "function" . H.TestCase $ do
-  H.assertEqual "text()" "a[text() = 'hello']" (S.show $ a # [S.text =. "hello"])
+  H.assertEqual "text()" "a[text() = \"hello\"]" (S.show $ a # [S.text =. "hello"])
   H.assertEqual
     "contains()"
-    "a[contains(text(), 'hello')]"
+    "a[contains(text(), \"hello\")]"
     (S.show $ a # [S.text `S.contains` "hello"])
   H.assertEqual
     "count() [relative]"
-    "a[count(child::b/child::c[@id = 'id']) = 3]"
+    "a[count(child::b/child::c[@id = \"id\"]) = 3]"
     (S.show $ a # [S.count (b /. c # [id' =. "id"]) =. 3])
   H.assertEqual
     "count() [absolute]"
-    "a[count(/(child::a/child::b)/child::c[@id = 'id']) = 3]"
+    "a[count(/(child::a/child::b)/child::c[@id = \"id\"]) = 3]"
     (S.show $ a # [S.count (root /. a /. b /. c # [id' =. "id"]) =. 3])
   H.assertEqual
     "doesNotContain()"
-    "a[not(contains(text(), 'hello'))]"
+    "a[not(contains(text(), \"hello\"))]"
     (S.show $ a # [S.text `S.doesNotContain` "hello"])
-  H.assertEqual "not()" "a[not(@id = 'id')]" (S.show $ a # [S.not (id' =. "id")])
+  H.assertEqual "not()" "a[not(@id = \"id\")]" (S.show $ a # [S.not (id' =. "id")])
 
 testNum :: H.Test
 testNum = H.TestLabel "num" . H.TestCase $ do
@@ -202,52 +205,52 @@ testPredicate :: H.Test
 testPredicate = H.TestLabel "path" . H.TestCase $ do
   H.assertEqual
     "filter node"
-    "/((descendant-or-self::node()/child::a)/child::b)/child::c[@id = 'id']"
+    "/((descendant-or-self::node()/child::a)/child::b)/child::c[@id = \"id\"]"
     (S.show $ root //. a /. b /. c # [id' =. "id"])
 
   H.assertEqual
     "filter absolute"
-    "(/((descendant-or-self::node()/child::a)/child::b)/child::c)[@id = 'id']"
+    "(/((descendant-or-self::node()/child::a)/child::b)/child::c)[@id = \"id\"]"
     (S.show $ (root //. a /. b /. c) # [id' =. "id"])
 
   H.assertEqual
     "double filter"
-    "(/((descendant-or-self::node()/child::a)/child::b)/child::c[@id = 'id'])[@id = 'id']"
+    "(/((descendant-or-self::node()/child::a)/child::b)/child::c[@id = \"id\"])[@id = \"id\"]"
      (S.show $ (root //. a /. b /. c # [id' =. "id"]) # [id' =. "id"])
 
   H.assertEqual
     "filter in middle"
-    "/((descendant-or-self::node()/child::a)/child::b[@id = 'id'])/child::c"
+    "/((descendant-or-self::node()/child::a)/child::b[@id = \"id\"])/child::c"
     (S.show $ root //. a /. (b # [id' =. "id"]) /. c)
 
   H.assertEqual
     "filter in middle (abbrev)"
-    "/((descendant-or-self::node()/child::a)/child::b[@id = 'id'])/child::c"
+    "/((descendant-or-self::node()/child::a)/child::b[@id = \"id\"])/child::c"
     (S.show $ root //. a /. (b # [id' =. "id"]) /. c)
 
   H.assertEqual
     "filter in middle with 2 nodes"
-    "/((descendant-or-self::node()/child::a)/((child::b/child::c)[@id = 'id']))/child::d"
+    "/((descendant-or-self::node()/child::a)/((child::b/child::c)[@id = \"id\"]))/child::d"
     (S.show $ root //. a /. ((b /. c) # [id' =. "id"]) /. d)
 
   H.assertEqual
     "brackets + brackets"
-    "child::a/(child::b/((child::c/child::d)[@id = 'id2']))"
+    "child::a/(child::b/((child::c/child::d)[@id = \"id2\"]))"
     (S.show $ a /. (b /. ((c /. d) # [id' =. "id2"])))
 
   H.assertEqual
     "filtering bracketed expression"
-    "(child::a/child::b)[@id = 'id'][position() = 2]"
+    "(child::a/child::b)[@id = \"id\"][position() = 2]"
     (S.show $ ((a /. b) # [id' =. "id"]) # [S.position =. 2])
 
   H.assertEqual
     "filtering bracketed expression with prev"
-    "(child::a/((child::b/child::c)[@id = 'id']))[position() = 2]"
+    "(child::a/((child::b/child::c)[@id = \"id\"]))[position() = 2]"
     (S.show $ (a /. ((b /. c) # [id' =. "id"])) # [S.position =. 2])
 
   H.assertEqual
     "Two filters"
-    "(child::a/child::b)[@id = 'id'][position() = 2]"
+    "(child::a/child::b)[@id = \"id\"][position() = 2]"
     (S.show $ (a /. b) # [id' =. "id"] # [S.position =. 2])
 
   H.assertEqual

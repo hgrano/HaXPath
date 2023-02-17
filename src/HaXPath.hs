@@ -132,7 +132,7 @@ showExpression (Operator o a b) =
     showOperand e = "(" <> showExpression e <> ")"
 
 showExpression (Attribute a) = "@" <> a
-showExpression (TextLiteral t) = "'" <> t <> "'" -- TODO escaping
+showExpression (TextLiteral t) = T.pack (P.show t)
 showExpression (IntegerLiteral i) = T.pack $ P.show i
 showExpression (PathFrom begin p pNextMay preds) =
   let prefix = case begin of
