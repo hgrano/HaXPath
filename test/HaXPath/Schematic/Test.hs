@@ -1,14 +1,11 @@
--- {-# LANGUAGE DataKinds             #-}
--- {-# LANGUAGE FlexibleInstances     #-}
--- {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE DataKinds             #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies             #-}
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies      #-}
 
 module HaXPath.Schematic.Test (suite) where
 
-import           Data.Proxy (Proxy(Proxy))
+import           Data.Proxy                  (Proxy (Proxy))
 import qualified HaXPath.Schematic           as S
 import           HaXPath.Schematic.Operators
 import qualified Test.HUnit                  as H

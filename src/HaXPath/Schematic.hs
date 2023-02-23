@@ -1,11 +1,11 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE NoImplicitPrelude      #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoImplicitPrelude     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 module HaXPath.Schematic (
   (&&.),
@@ -23,6 +23,7 @@ module HaXPath.Schematic (
   Ancestor,
   at,
   Attributes,
+  Axis,
   Bool,
   child,
   Child,
@@ -53,7 +54,9 @@ module HaXPath.Schematic (
   PathLike,
   position,
   Relatives,
+  ReturnNode,
   root,
+  SelectNode,
   show,
   text,
   Text,
@@ -62,29 +65,38 @@ module HaXPath.Schematic (
 ) where
 
 import           Data.HList.CommonMain (HMember)
-import qualified Data.String as S
-import qualified Data.Text   as T
-import qualified HaXPath     as X
-import           Prelude     (($), (*), (+), (.), (<$>))
-import qualified Prelude     as P
+import qualified Data.String           as S
+import qualified Data.Text             as T
+import qualified HaXPath               as X
+import           Prelude               (($), (*), (+), (.), (<$>))
+import qualified Prelude               as P 
 
+-- | Type level membership constraint indicating that the type @x@ is a member of the type-level list @xs@.
 type Member x xs = HMember x xs 'P.True
 
--- | The type of simple boolean expressions.
+-- | The type of boolean expressions which depend on the value of the attribute(s) @as@.
 newtype Bool (as :: [*]) = Bool { unBool :: X.Bool }
 
+-- | XPath @true()@ value.
 true :: Bool as
 true = Bool X.true
 
+-- | XPath @false()@ value.
 false :: Bool as
 false = Bool X.false
 
--- | The type of simple numeric expressions.
+-- | The type of simple numeric expressions which depend on the value of the attribute(s) @as@.
 newtype Number (as :: [*]) = Number { unNumber :: X.Number }
 
--- | The type of simple text expressions.
+-- | The type of simple text expressions which depend on the value of the attribute(s) @as@.
 newtype Text (as :: [*]) = Text { unText :: X.Text }
 
+-- | The type of path expressions formed by these steps:
+--
+-- 1. Starting from the context @c@ and moving through the given @axis@.
+-- 1. Selecting node(s) of type @n@.
+-- 1. Performing zero or more location steps.
+-- 1. Finally returning the node(s) of type @rn@.
 newtype Path c axis n rn  = Path { unPath :: X.Path c }
 
 -- | Create a literal XPath value.
@@ -94,9 +106,12 @@ lit = fromNonSchematic . X.lit
 instance S.IsString (Text as) where
   fromString = Text . S.fromString
 
+-- | Type class for conversion from a schematic value to its underlying, non-schematic version.
 class ToNonSchematic t where
+  -- | Corresponding non-schematic type.
   type NonSchematic t
 
+  -- | Convert from the schematic to the non-schematic version.
   toNonSchematic :: t -> NonSchematic t
 
 instance ToNonSchematic (Bool as) where
@@ -129,6 +144,8 @@ instance ToNonSchematic (DocumentRoot s) where
 
   toNonSchematic = unDocumentRoot
 
+-- This type class is not exposed as this would allow for arbitrary, non-schematic expression to be converted to
+-- a schematic version when the underlying expression does not actually conform to the schema.
 class FromNonSchematic x t where
   fromNonSchematic :: x -> t
 
@@ -144,7 +161,6 @@ instance FromNonSchematic X.Text (Text as) where
 instance FromNonSchematic (X.Path c) (Path c axis n rn) where
   fromNonSchematic = Path
 
--- make sure to hide this function!
 instance FromNonSchematic X.Node (Node n) where
   fromNonSchematic = Node
 
@@ -164,7 +180,7 @@ doesNotContain :: Text as -> Text as -> Bool as
 doesNotContain = binary X.doesNotContain
 
 -- | The XPath @count()@ function.
-count :: X.IsCtx c => Path c axis n rn -> Number as
+count :: X.IsContext c => Path c axis n rn -> Number as
 count = Number . X.count . unPath
 
 -- | The XPath @position()@ function.
@@ -198,10 +214,13 @@ infixr 3 &&.
 not :: Bool a -> Bool a
 not = Bool . X.not . unBool
 
+-- | Access the value of the attribute @a@ of a node (equivalent to XPath's @\@@).
 at :: (IsAttribute a, Member a as) => proxy a -> Text as
 at proxy = Text (X.at $ attributeName proxy)
 
+-- | Type class for node attributes.
 class IsAttribute a where
+  -- | Return the name of the attribute.
   attributeName :: proxy a -> T.Text
 
 -- | The XPath @=@ operator.
@@ -242,54 +261,79 @@ instance P.Num (Number a) where
   fromInteger = Number . P.fromInteger
   negate = unary P.negate
 
--- | Type of an XPath node.
+-- | Type of an XPath node of type @n@.
 newtype Node (n :: *) = Node { unNode :: X.Node }
 
+-- | Type class of node types.
 class IsNode n where
+  -- | Return the name of the node.
   nodeName :: proxy n -> T.Text
 
--- | Create a node with the given name.
+-- | Create a node expression of the given type.
 namedNode :: IsNode n => proxy n -> Node n
 namedNode = Node . X.namedNode . nodeName
 
+-- | Type family to constrain the possible relatives of nodes of type @n@ through the given axis.
 type family Relatives n axis :: [*]
 
+-- | Type of the XPath @ancestor::@ axis.
 data Ancestor
+
+-- | Type of the XPath @child::@ axis.
 data Child
+
+-- | Type of the XPath @descendant::@ axis.
 data Descendant
+
+-- | Type of the XPath @descendant-or-self::@ axis.
 data DescendantOrSelf
+
+-- | Type of the XPath @following::@ axis.
 data Following
+
+-- | Type of the XPath @following-sibling::@ axis.
 data FollowingSibling
+
+-- | Type of the XPath @parent::@ axis.
 data Parent
+
+-- | Type of the XPath @self::@ axis.
 data Self
 
 type instance Relatives n Self = '[n]
 
-newtype DocumentRoot s = DocumentRoot { unDocumentRoot :: X.DocumentRoot } 
+-- | Type of the document root for the schema @s@. Useful in forming an XPaths which must begin from the root.
+newtype DocumentRoot s = DocumentRoot { unDocumentRoot :: X.DocumentRoot }
 
 type instance Relatives (DocumentRoot s) Ancestor = '[]
 type instance Relatives (DocumentRoot s) Following = '[]
 type instance Relatives (DocumentRoot s) FollowingSibling = '[]
 type instance Relatives (DocumentRoot s) Parent = '[]
 
+-- | The root of the document for the schema @s@.
 root :: DocumentRoot s
 root = DocumentRoot X.root
 
+-- | Type family to infer of the axis of a location step based on the type of the step.
 type family Axis p where
   Axis (Path c axis n rn) = axis
   Axis (Node n) = Child
 
+-- | Type family to infer the type of the node selected by the first location step in a path.
 type family SelectNode p where
   SelectNode (Path c axis n rn) = n
   SelectNode (Node n) = n
 
+-- | Type family to infer the node selected by the last location step in a path.
 type family ReturnNode p where
-  ReturnNode (Path c axis n rn) = rn 
+  ReturnNode (Path c axis n rn) = rn
   ReturnNode (Node n) = n
   ReturnNode (DocumentRoot s) = DocumentRoot s
 
+-- | Constraint for types from which a path can be inferred.
 type PathLike p = (ToNonSchematic p, X.PathLike (NonSchematic p))
 
+-- | The XPath @/@ operator. 
 (/.) :: (Member (SelectNode q) (Relatives (ReturnNode p) (Axis q)),
           PathLike p,
           PathLike q,
@@ -300,6 +344,7 @@ type PathLike p = (ToNonSchematic p, X.PathLike (NonSchematic p))
 (/.) = binary (X./.)
 infixl 8 /.
 
+-- | The XPath @//@ operator. 
 (//.) :: (Member (SelectNode q) (Relatives (ReturnNode p) Descendant),
           PathLike p,
           PathLike q,
@@ -310,8 +355,11 @@ infixl 8 /.
 (//.) = binary (X.//.)
 infixl 8 //.
 
+-- | Type family which contrains the possible attributes a node of type @n@ may have.
 type family Attributes n :: [*]
 
+-- | Filter the path-like expression using the given predicate(s). The predicates must only make use of the attributes
+-- of the type of node selected by the path, otherwise it will not type check.
 (#) :: (PathLike p,
         ToNonSchematic p,
         FromNonSchematic (NonSchematic p) p,
@@ -321,31 +369,31 @@ p # preds = fromNonSchematic $ toNonSchematic p X.# (toNonSchematic <$> preds)
 infixl 9 #
 
 -- | The XPath @ancestor::@ axis.
-ancestor :: Node n -> Path X.CurrentCtx Ancestor n n
+ancestor :: Node n -> Path X.CurrentContext Ancestor n n
 ancestor (Node n) = Path $ X.ancestor n
 
 -- | The XPath @child::@ axis.
-child :: Node n -> Path X.CurrentCtx Child n n
+child :: Node n -> Path X.CurrentContext Child n n
 child (Node n) = Path $ X.child n
 
 -- | The XPath @descendant::@ axis.
-descendant :: Node n -> Path X.CurrentCtx Descendant n n
+descendant :: Node n -> Path X.CurrentContext Descendant n n
 descendant (Node n) = Path $ X.descendant n
 
 -- | The XPath @descendant-or-self::@ axis.
-descendantOrSelf :: Node n -> Path X.CurrentCtx DescendantOrSelf n n
+descendantOrSelf :: Node n -> Path X.CurrentContext DescendantOrSelf n n
 descendantOrSelf (Node n) = Path $ X.descendantOrSelf n
 
 -- | The XPath @following::@ axis.
-following :: Node n -> Path X.CurrentCtx Following n n
+following :: Node n -> Path X.CurrentContext Following n n
 following (Node n) = Path $ X.following n
 
 -- | The XPath @following-sibling::@ axis.
-followingSibling :: Node n -> Path X.CurrentCtx FollowingSibling n n
+followingSibling :: Node n -> Path X.CurrentContext FollowingSibling n n
 followingSibling (Node n) = Path $ X.followingSibling n
 
 -- | The XPath @parent::@ axis.
-parent :: Node n -> Path X.CurrentCtx Parent n n
+parent :: Node n -> Path X.CurrentContext Parent n n
 parent (Node n) = Path $ X.parent n
 
 -- | Display an XPath expression. This is useful for sending the XPath expression to a separate XPath evaluator e.g.
