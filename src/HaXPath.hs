@@ -466,7 +466,7 @@ changeContext :: PathBegin -> Path c -> Path c'
 changeContext begin (Path p) = Path $ case p of
   PathFrom _ fstPath sndPath preds -> PathFrom begin fstPath sndPath preds
   LocationStep _ _ -> if begin == FromRootContext then PathFrom begin p P.Nothing [] else p
-  _ -> P.error "HaXPath internal error: unexpected non-path expression"
+  other -> PathFrom begin other P.Nothing []
 
 fromCurrentContext :: Path c -> Path CurrentContext
 fromCurrentContext = changeContext FromCurrentContext

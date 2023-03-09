@@ -81,6 +81,7 @@ testContext :: H.Test
 testContext = H.TestLabel "context" . H.TestCase $ do
   H.assertEqual "//" "/descendant-or-self::node()/child::a" (X.show $ X.root //. a)
   H.assertEqual "/" "/child::a" (X.show $ X.root /. a)
+  H.assertEqual "/ - using operator" "/((a) | (b))" (X.show $ X.root /. (a |. b))
 
 testFunction :: H.Test
 testFunction = H.TestLabel "function" . H.TestCase $ do
