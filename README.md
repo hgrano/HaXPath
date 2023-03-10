@@ -19,7 +19,8 @@ be found [here](https://htmlpreview.github.io/?https://github.com/hgrano/HaXPath
 
 ### Standard API
 `HaXPath` modules are expected to be imported qualified as otherwise you will get name conflicts with the Prelude. The
-operators however need not be qualified, and can conveniently be imported directly from `HaXPath.Operators`.
+operators however need not be qualified, and can conveniently be imported directly from `HaXPath.Operators`. All
+operators are suffixed with `.`.
 
 Some basic examples:
 
@@ -37,12 +38,13 @@ b :: X.Node
 b = X.namedNode "b"
 
 -- The XPath "/descendant-or-self::node()/child::a/child::b"
+-- root is a virtual node, and can be used only at the beginning of a path to indicate it is an absolute path
 p1 :: X.Path
-p1 = X.fromRoot $ X.descendantOrSelf X.node ./. X.child a ./. X.child b
+p1 = X.root /. X.descendantOrSelf X.node /. X.child a /. X.child b
 
 -- The same XPath as above but in abbreviated form
 p2 :: X.Path
-p2 = X.doubleSlash a /. b
+p2 = X.root //. a /. b
 
 -- Convert paths to `Text`:
 X.show p1 == "/descendant-or-self::node()/child::a/child::b"
@@ -53,8 +55,8 @@ You can add qualifiers to filter node sets using the `#` operator:
 
 ```haskell
 X.show (p1 # X.position =. 1) == "(/descendant-or-self::node()/child::a/child::b)[position() = 1]"
-X.show (X.doubleSlash a /. b # X.position =. 1) == "/descendant-or-self::node()/child::a/child::b[position() = 1]"
-X.show (X.doubleSlash a # X.at "id" =. "abc") == "/descendant-or-self::node()/child::a[@id = 'abc']"
+X.show (X.root //. a /. b # X.position =. 1) == "/descendant-or-self::node()/child::a/child::b[position() = 1]"
+X.show (X.root //. a # X.at "id" =. "abc") == "/descendant-or-self::node()/child::a[@id = 'abc']"
 ```
 
 Note the second argument to `#` must represent a boolean value, otherwise it will not type check.
@@ -79,9 +81,11 @@ It should be fairly intuitive that there is an underlying schema to the above do
 ```haskell
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
+import           Data.Proxy                  (Proxy(Proxy))
 import qualified HaXPath.Schematic           as S
 import           HaXPath.Schematic.Operators
 
@@ -91,47 +95,61 @@ data MenuSchema
 -- Type of the <menu> node.
 data Menu
 
+instance IsNode Menu where
+  nodeName _ = "menu"
+
 -- A <menu> node.
-menu :: S.Node MenuSchema Menu
-menu = S.namedNode "a"
+menu :: S.Node Menu
+menu = S.namedNode
 
 -- Type of the <item> node.
 data Item
 
+instance IsNode Item where
+  nodeName _ = "item"
+
 -- An <item> node.
-item :: S.Node MenuSchema Item
+item :: S.Node Item
 item = S.namedNode "item"
 
 -- Type of the "name" attribute
 data Name
 
--- An <item> may have a "name" attribute.
-instance S.NodeAttribute Item Name
+instance IsAttribute Name where
+  attributeName _ = "name"
 
 -- @name
-name :: S.Attribute Name
-name = S.at "name"
+-- "as" is a type-level list of attributes used within the expression.
+-- The "Member" constraint is used to show that the name attribute has been used, which is useful for type-checking that
+-- this attribute can in fact be present in the context in which it is used.
+name :: S.Member Name as => S.Text as
+name = S.at (Proxy :: Proxy Name)
 
 -- Type of the "price" attribute
 data Price
 
--- An <item> may have a "price" attribute.
-instance S.NodeAttribute Item Price
+instance IsAttribute Price where
+  attributeName _ = "price"
 
 -- @price
-price :: S.Attribute Price
-price = S.at "price"
+price :: S.Member Price as => S.Text as
+price = S.at (Proxy :: Proxy Price)
 
--- Our menu schema may only have <menu> and <item> nodes.
-instance S.SchemaNodes MenuSchema '[Menu, Item]
+-- Menu is the only possible node at the top level of the document
+type instance S.Relatives (DocumentRoot MenuSchema) S.Child '[Menu]
+
+-- The only possible child node of a menu is item
+type instance S.Relatives Menu S.Child '[Item]
+
+-- An <item> may have "name" and "price" attributes.
+type instance S.Attributes Item '[Name, Price]
 
 -- Select all the waffles items
-p = S.fromRoot $ S.child menu ./ item # name `S.contains` ("Waffle" :: S.Text)
-S.show p == "/child::menu/child::item[contains(@name, 'Waffle')]"
+S.show (S.root /. menu /. item # name `S.contains` "Waffle") == "/child::menu/child::item[contains(@name, 'Waffle')]"
 
--- The follwing will not type check because <menu> does not have a price
-S.fromRoot $ S.child menu # price =. ("$7.50" :: S.Text)
+-- The following will not type check because <menu> does not have a price
+S.root /. menu # price =. "$7.50"
+
+-- The following will not type check because <item> cannot exist at the top level of the document
+S.root /. item
 ```
-
-Currently there are no constraints on the axis relationships bewteen nodes. For example, there is no constraint that
-`<item>` must be a child of `<menu>` in the above example. This will be added in future.

@@ -465,8 +465,8 @@ self = locationStep Self
 changeContext :: PathBegin -> Path c -> Path c'
 changeContext begin (Path p) = Path $ case p of
   PathFrom _ fstPath sndPath preds -> PathFrom begin fstPath sndPath preds
-  LocationStep _ _ -> if begin == FromRootContext then PathFrom begin p P.Nothing [] else p
-  other -> PathFrom begin other P.Nothing []
+  LocationStep _ _                 -> if begin == FromRootContext then PathFrom begin p P.Nothing [] else p
+  other                            -> PathFrom begin other P.Nothing []
 
 fromCurrentContext :: Path c -> Path CurrentContext
 fromCurrentContext = changeContext FromCurrentContext
@@ -488,10 +488,10 @@ instance IsContext c => Filterable (Path c) where
   xp # preds =
     let predExps = toExpression <$> preds in
     Path $ case toExpression xp of
-      LocationStep axis (FilteredNode n ps) -> LocationStep axis (FilteredNode n (ps <> predExps))
-      LocationStep axis e -> LocationStep axis (FilteredNode e predExps)
+      LocationStep axis (FilteredNode n ps)  -> LocationStep axis (FilteredNode n (ps <> predExps))
+      LocationStep axis e                    -> LocationStep axis (FilteredNode e predExps)
       PathFrom begin firstSteps nextSteps ps -> PathFrom begin firstSteps nextSteps (ps <> predExps)
-      otherExp -> PathFrom (toPathBegin (Proxy :: Proxy c)) otherExp P.Nothing predExps
+      otherExp                               -> PathFrom (toPathBegin (Proxy :: Proxy c)) otherExp P.Nothing predExps
 
 instance Filterable Node where
   n # preds =

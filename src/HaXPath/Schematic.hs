@@ -65,11 +65,12 @@ module HaXPath.Schematic (
 ) where
 
 import           Data.HList.CommonMain (HMember)
+import           Data.Proxy            (Proxy (Proxy))
 import qualified Data.String           as S
 import qualified Data.Text             as T
 import qualified HaXPath               as X
 import           Prelude               (($), (*), (+), (.), (<$>))
-import qualified Prelude               as P 
+import qualified Prelude               as P
 
 -- | Type level membership constraint indicating that the type @x@ is a member of the type-level list @xs@.
 type Member x xs = HMember x xs 'P.True
@@ -270,8 +271,8 @@ class IsNode n where
   nodeName :: proxy n -> T.Text
 
 -- | Create a node expression of the given type.
-namedNode :: IsNode n => proxy n -> Node n
-namedNode = Node . X.namedNode . nodeName
+namedNode :: forall n. IsNode n => Node n
+namedNode = Node . X.namedNode $ nodeName (Proxy :: Proxy n)
 
 -- | Type family to constrain the possible relatives of nodes of type @n@ through the given axis.
 type family Relatives n axis :: [*]
@@ -333,7 +334,7 @@ type family ReturnNode p where
 -- | Constraint for types from which a path can be inferred.
 type PathLike p = (ToNonSchematic p, X.PathLike (NonSchematic p))
 
--- | The XPath @/@ operator. 
+-- | The XPath @/@ operator.
 (/.) :: (Member (SelectNode q) (Relatives (ReturnNode p) (Axis q)),
           PathLike p,
           PathLike q,
@@ -344,7 +345,7 @@ type PathLike p = (ToNonSchematic p, X.PathLike (NonSchematic p))
 (/.) = binary (X./.)
 infixl 8 /.
 
--- | The XPath @//@ operator. 
+-- | The XPath @//@ operator.
 (//.) :: (Member (SelectNode q) (Relatives (ReturnNode p) Descendant),
           PathLike p,
           PathLike q,

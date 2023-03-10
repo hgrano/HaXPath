@@ -18,7 +18,7 @@ instance S.IsNode A where
   nodeName _ = "a"
 
 a :: S.Node A
-a = S.namedNode (Proxy :: Proxy A)
+a = S.namedNode
 
 data B
 
@@ -26,7 +26,7 @@ instance S.IsNode B where
   nodeName _ = "b"
 
 b :: S.Node B
-b = S.namedNode (Proxy :: Proxy B)
+b = S.namedNode
 
 data C
 
@@ -34,7 +34,7 @@ instance S.IsNode C where
   nodeName _ = "c"
 
 c :: S.Node C
-c = S.namedNode (Proxy :: Proxy C)
+c = S.namedNode
 
 data D
 
@@ -42,7 +42,7 @@ instance S.IsNode D where
   nodeName _ = "d"
 
 d :: S.Node D
-d = S.namedNode (Proxy :: Proxy D)
+d = S.namedNode
 
 type Root = S.DocumentRoot Schema
 
