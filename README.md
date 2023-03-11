@@ -1,21 +1,20 @@
 # HaXPath
-HaXPath is a library and embedded domain-specifc language which enables expression of strongly-typed XPath expressions
-within Haskell.
+HaXPath is a library and embedded domain-specifc language which uses strongly-typed Haskell expressions to represent
+XPaths.
 
 ## Motivation
 In many contexts when querying XML documents in Haskell we often need to use `String` values to represent the
 XPaths we want to use. These `String` expressions can quickly become hard to manage as they do not take advantage of
 Haskell's type system, particularly for more complex XPaths. We may not know until run-time whether the XPath is even
 syntactically valid. HaXPath does not have its own XPath engine to run the queries, rather it is expected to be used
-in combination with other libraries which have such functionality. Instead, we can simply convert the typeful XPath
-expressions to `String` or `Text` and send them to our favourite APIs.
+in combination with other libraries which have such functionality. Instead, we can simply convert the strongly-typed
+XPath expressions to `String` or `Text` and send them to our favourite APIs.
 
 ## HaXPath API
 HaXPath provides two core APIs: the standard API (`HaXPath` module) allows for expressing generic XPaths, while
 the schematic API (`HaXPath.Schematic` module) is a layer of abstraction built upon the standard API which constrains
 XPath expressions so they must follow a specifc document schema. An example of a schema is the HTML standard. There is
-an (incomplete) implementation of the schematic API for HTML in the `HaXPath.Schematic.HTML` module. The API Haddock can
-be found [here](https://htmlpreview.github.io/?https://github.com/hgrano/HaXPath/blob/master/doc/index.html).
+an (incomplete) implementation of the schematic API for HTML in the `HaXPath.Schematic.HTML` module.
 
 ### Standard API
 `HaXPath` modules are expected to be imported qualified as otherwise you will get name conflicts with the Prelude. The
@@ -59,7 +58,7 @@ X.show (X.root //. a /. b # X.position =. 1) == "/descendant-or-self::node()/chi
 X.show (X.root //. a # X.at "id" =. "abc") == "/descendant-or-self::node()/child::a[@id = 'abc']"
 ```
 
-Note the second argument to `#` must represent a boolean value, otherwise it will not type check.
+Note the second argument to `#` must represent an XPath boolean value, otherwise it will not type check.
 
 `test/HaXPath/Test.hs` provides a variety of examples showing what can be done.
 
@@ -92,6 +91,9 @@ import           HaXPath.Schematic.Operators
 -- Empty data type for our schema
 data MenuSchema
 
+root :: S.DocumentRoot MenuSchema
+root = S.root
+
 -- Type of the <menu> node.
 data Menu
 
@@ -120,8 +122,9 @@ instance IsAttribute Name where
 
 -- @name
 -- "as" is a type-level list of attributes used within the expression.
--- The "Member" constraint is used to show that the name attribute has been used, which is useful for type-checking that
--- this attribute can in fact be present in the context in which it is used.
+-- The "Member" constraint is used to show that the type Name is a member of "as".
+-- This constraint can then be used to verify that it is only used within the context of a node that can actually have
+-- the name attribute.
 name :: S.Member Name as => S.Text as
 name = S.at (Proxy :: Proxy Name)
 
@@ -136,7 +139,7 @@ price :: S.Member Price as => S.Text as
 price = S.at (Proxy :: Proxy Price)
 
 -- Menu is the only possible node at the top level of the document
-type instance S.Relatives (DocumentRoot MenuSchema) S.Child '[Menu]
+type instance S.Relatives (S.DocumentRoot MenuSchema) S.Child '[Menu]
 
 -- The only possible child node of a menu is item
 type instance S.Relatives Menu S.Child '[Item]
@@ -145,11 +148,11 @@ type instance S.Relatives Menu S.Child '[Item]
 type instance S.Attributes Item '[Name, Price]
 
 -- Select all the waffles items
-S.show (S.root /. menu /. item # name `S.contains` "Waffle") == "/child::menu/child::item[contains(@name, 'Waffle')]"
+S.show (root /. menu /. item # name `S.contains` "Waffle") == "/child::menu/child::item[contains(@name, 'Waffle')]"
 
 -- The following will not type check because <menu> does not have a price
-S.root /. menu # price =. "$7.50"
+root /. menu # price =. "$7.50"
 
 -- The following will not type check because <item> cannot exist at the top level of the document
-S.root /. item
+root /. item
 ```
