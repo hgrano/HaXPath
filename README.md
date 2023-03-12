@@ -19,7 +19,7 @@ an (incomplete) implementation of the schematic API for HTML in the `HaXPath.Sch
 ### Standard API
 `HaXPath` modules are expected to be imported qualified as otherwise you will get name conflicts with the Prelude. The
 operators however need not be qualified, and can conveniently be imported directly from `HaXPath.Operators`. All
-operators are suffixed with `.`.
+operators are suffixed with `.`, with the exception of `#`.
 
 Some basic examples:
 
