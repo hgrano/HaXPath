@@ -19,6 +19,7 @@ module HaXPath.Schematic (
   (>=.),
   (||.),
   (#),
+  AbsolutePath,
   ancestor,
   Ancestor,
   at,
@@ -53,6 +54,7 @@ module HaXPath.Schematic (
   Path,
   PathLike,
   position,
+  RelativePath,
   Relatives,
   ReturnNode,
   root,
@@ -99,6 +101,10 @@ newtype Text (as :: [*]) = Text { unText :: X.Text }
 -- 1. Performing zero or more location steps.
 -- 1. Finally returning the node(s) of type @rn@.
 newtype Path c axis n rn  = Path { unPath :: X.Path c }
+
+type AbsolutePath s = Path X.RootContext Self (DocumentRoot s)
+
+type RelativePath = Path X.CurrentContext
 
 -- | Create a literal XPath value.
 lit :: (FromNonSchematic (X.AsExpression h) t, X.Literal h) => h -> t
@@ -169,7 +175,7 @@ instance FromNonSchematic X.DocumentRoot (DocumentRoot n) where
   fromNonSchematic = DocumentRoot
 
 -- | The XPath @text()@ function.
-text :: Text as
+text :: forall (as :: [*]). Text as
 text = Text X.text
 
 -- | The XPath @contains()@ function.
@@ -319,11 +325,13 @@ root = DocumentRoot X.root
 type family Axis p where
   Axis (Path c axis n rn) = axis
   Axis (Node n) = Child
+  Axis (DocumentRoot s) = Self
 
 -- | Type family to infer the type of the node selected by the first location step in a path.
 type family SelectNode p where
   SelectNode (Path c axis n rn) = n
   SelectNode (Node n) = n
+  SelectNode (DocumentRoot s) = DocumentRoot s
 
 -- | Type family to infer the node selected by the last location step in a path.
 type family ReturnNode p where

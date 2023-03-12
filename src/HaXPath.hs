@@ -18,6 +18,7 @@ module HaXPath(
   (>=.),
   (||.),
   (|.),
+  AbsolutePath,
   ancestor,
   at,
   Bool,
@@ -49,6 +50,7 @@ module HaXPath(
   Path,
   PathLike,
   position,
+  RelativePath,
   root,
   RootContext,
   self,
@@ -322,6 +324,12 @@ instance IsExpression Node where
 
 -- | An XPath beginning from some context `c` (either the root context or the current context).
 newtype Path c = Path { unPath :: Expression }
+
+-- | An XPath relative to the current context.
+type RelativePath = Path CurrentContext
+
+-- | An XPath beginning from the document root.
+type AbsolutePath = Path RootContext
 
 -- | Type to indicate the XPath begins from the current context.
 data CurrentContext
