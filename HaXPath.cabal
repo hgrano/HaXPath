@@ -18,7 +18,6 @@ library
       HaXPath
     , HaXPath.Operators
     , HaXPath.Schematic
-    , HaXPath.Schematic.HTML
     , HaXPath.Schematic.Operators
   hs-source-dirs:
       src
