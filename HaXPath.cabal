@@ -25,7 +25,7 @@ library
   ghc-options: -Wall -Werror -O
   build-depends:
       base >= 4.6 && < 5
-    , HList >= 0.4.0.0 && < 0.6.0.0
+    , HList >= 0.4.0.0 && < 0.6
     , text >= 0.11.3
   default-language: Haskell2010
 
@@ -39,19 +39,20 @@ test-suite test
       test
   ghc-options: -Wall -Werror -O
   build-depends:
-      HaXPath
+      base >= 4.6 && < 5
+    , HaXPath
     , HUnit
-    , base >= 4.6 && < 5
   default-language: Haskell2010
 
-executable examples
+test-suite examples
+  type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
       HaXPath.Examples
     , HaXPath.Schematic.Examples
   build-depends:
       base >= 4.6 && < 5
-    , HaXPath == 0.1.1.1
+    , HaXPath
     , text >= 0.11.3
   hs-source-dirs:
       examples
