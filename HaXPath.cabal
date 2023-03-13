@@ -1,7 +1,7 @@
 cabal-version: 1.12
 
 name:           HaXPath
-version:        0.1.1.1
+version:        0.2.0.0
 description:    XPath-generating embedded domain specific language.
 homepage:       https://github.com/hgrano/HaXPath
 bug-reports:    https://github.com/hgrano/HaXPath/issues
@@ -18,13 +18,13 @@ library
       HaXPath
     , HaXPath.Operators
     , HaXPath.Schematic
-    , HaXPath.Schematic.HTML
     , HaXPath.Schematic.Operators
   hs-source-dirs:
       src
   ghc-options: -Wall -Werror -O
   build-depends:
       base >= 4.6 && < 5
+    , HList >= 0.4.0.0 && < 0.6
     , text >= 0.11.3
   default-language: Haskell2010
 
@@ -38,7 +38,22 @@ test-suite test
       test
   ghc-options: -Wall -Werror -O
   build-depends:
-      HaXPath
+      base >= 4.6 && < 5
+    , HaXPath
     , HUnit
-    , base >= 4.6 && < 5
+  default-language: Haskell2010
+
+test-suite examples
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      HaXPath.Examples
+    , HaXPath.Schematic.Examples
+  build-depends:
+      base >= 4.6 && < 5
+    , HaXPath
+    , text >= 0.11.3
+  hs-source-dirs:
+      examples
+  ghc-options: -Wall -Werror -O
   default-language: Haskell2010

@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 import qualified HaXPath.Schematic.Test as S
 import qualified HaXPath.Test           as X
 import qualified System.Exit            as E

@@ -1,21 +1,14 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE KindSignatures         #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE NoImplicitPrelude      #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TypeOperators          #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoImplicitPrelude     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
 
-module HaXPath.Schematic(
+module HaXPath.Schematic (
   (&&.),
-  (*.),
-  (+.),
-  (-.),
-  (./.),
   (/.),
   (//.),
   (/=.),
@@ -25,323 +18,394 @@ module HaXPath.Schematic(
   (>.),
   (>=.),
   (||.),
-  abs,
+  (#),
+  AbsolutePath,
   ancestor,
+  Ancestor,
   at,
-  Attribute,
+  Attributes,
+  Axis,
   Bool,
   child,
+  Child,
   contains,
   count,
   descendant,
+  Descendant,
   descendantOrSelf,
+  DescendantOrSelf,
+  DocumentRoot,
   doesNotContain,
-  doubleSlash,
-  Expression,
-  Filterable(..),
+  false,
   following,
+  Following,
   followingSibling,
-  fromInteger,
-  fromRoot,
-  IsPath(..),
+  FollowingSibling,
+  IsAttribute(..),
+  IsNode(..),
   lit,
-  MultiNode,
+  Member,
   namedNode,
-  negate,
   Node,
-  node,
-  NodeAttribute,
-  NodeAttributes,
-  NodesAttributes,
   not,
   Number,
   parent,
+  Parent,
   Path,
+  PathLike,
   position,
   RelativePath,
-  SchemaNodes,
+  Relatives,
+  ReturnNode,
+  root,
+  SelectNode,
   show,
-  signum,
   text,
   Text,
-  Union
+  ToNonSchematic(..),
+  true
 ) where
 
-import qualified Data.String as S
-import qualified Data.Text   as T
-import qualified HaXPath     as X
-import           Prelude     (($), (*), (+), (-), (.))
-import qualified Prelude     as P
+import           Data.HList.CommonMain (HMember)
+import           Data.Proxy            (Proxy (Proxy))
+import qualified Data.String           as S
+import qualified Data.Text             as T
+import qualified HaXPath               as X
+import           Prelude               (($), (*), (+), (.), (<$>))
+import qualified Prelude               as P
 
--- | The union of two sets of types.
-class Union (l :: [*]) (m :: [*]) (lm :: [*]) | l m -> lm
+-- | Type level membership constraint indicating that the type @x@ is a member of the type-level list @xs@.
+type Member x xs = HMember x xs 'P.True
 
-instance Union '[] m m
+-- | The type of boolean expressions which depend on the value of the attribute(s) @as@.
+newtype Bool (as :: [*]) = Bool { unBool :: X.Bool }
 
-instance Union l' m lm => Union (l ': l') m (l ': lm)
+-- | XPath @true()@ value.
+true :: Bool as
+true = Bool X.true
 
--- | An XPath expression returning a value of type 'x', involving zero or more attributes 'a'.
-newtype Expression (x :: *) (a :: [*]) = Expression { unExpression :: X.Expression x }
+-- | XPath @false()@ value.
+false :: Bool as
+false = Bool X.false
 
--- | The type of simple boolean expressions.
-type Bool = Expression X.Bool '[]
+-- | The type of simple numeric expressions which depend on the value of the attribute(s) @as@.
+newtype Number (as :: [*]) = Number { unNumber :: X.Number }
 
--- | The type of simple numeric expressions.
-type Number = Expression X.Number '[]
+-- | The type of simple text expressions which depend on the value of the attribute(s) @as@.
+newtype Text (as :: [*]) = Text { unText :: X.Text }
 
--- | The type of simple text expressions.
-type Text = Expression X.Text '[]
+-- | The type of path expressions formed by these steps:
+--
+-- 1. Starting from the context @c@ and moving through the given @axis@.
+-- 1. Selecting node(s) of type @n@.
+-- 1. Performing zero or more location steps.
+-- 1. Finally returning the node(s) of type @rn@.
+newtype Path c axis n rn  = Path { unPath :: X.Path c }
+
+type AbsolutePath s = Path X.RootContext Self (DocumentRoot s)
+
+type RelativePath = Path X.CurrentContext
 
 -- | Create a literal XPath value.
-lit :: X.Lit h x => h -> Expression x '[]
-lit = Expression . X.lit
+lit :: (FromNonSchematic (X.AsExpression h) t, X.Literal h) => h -> t
+lit = fromNonSchematic . X.lit
 
-instance S.IsString Text where
-  fromString = Expression . S.fromString
+instance S.IsString (Text as) where
+  fromString = Text . S.fromString
+
+-- | Type class for conversion from a schematic value to its underlying, non-schematic version.
+class ToNonSchematic t where
+  -- | Corresponding non-schematic type.
+  type NonSchematic t
+
+  -- | Convert from the schematic to the non-schematic version.
+  toNonSchematic :: t -> NonSchematic t
+
+instance ToNonSchematic (Bool as) where
+  type NonSchematic (Bool as) = X.Bool
+
+  toNonSchematic = unBool
+
+instance ToNonSchematic (Number as) where
+  type NonSchematic (Number as) = X.Number
+
+  toNonSchematic = unNumber
+
+instance ToNonSchematic (Text as) where
+  type NonSchematic (Text as) = X.Text
+
+  toNonSchematic = unText
+
+instance ToNonSchematic (Path c axis n rn) where
+  type NonSchematic (Path c axis n rn) = X.Path c
+
+  toNonSchematic = unPath
+
+instance ToNonSchematic (Node n) where
+  type NonSchematic (Node n) = X.Node
+
+  toNonSchematic = unNode
+
+instance ToNonSchematic (DocumentRoot s) where
+  type NonSchematic (DocumentRoot s) = X.DocumentRoot
+
+  toNonSchematic = unDocumentRoot
+
+-- This type class is not exposed as this would allow for arbitrary, non-schematic expression to be converted to
+-- a schematic version when the underlying expression does not actually conform to the schema.
+class FromNonSchematic x t where
+  fromNonSchematic :: x -> t
+
+instance FromNonSchematic X.Bool (Bool as) where
+  fromNonSchematic = Bool
+
+instance FromNonSchematic X.Number (Number as) where
+  fromNonSchematic = Number
+
+instance FromNonSchematic X.Text (Text as) where
+  fromNonSchematic = Text
+
+instance FromNonSchematic (X.Path c) (Path c axis n rn) where
+  fromNonSchematic = Path
+
+instance FromNonSchematic X.Node (Node n) where
+  fromNonSchematic = Node
+
+instance FromNonSchematic X.DocumentRoot (DocumentRoot n) where
+  fromNonSchematic = DocumentRoot
 
 -- | The XPath @text()@ function.
-text :: Text
-text = Expression X.text
+text :: forall (as :: [*]). Text as
+text = Text X.text
 
 -- | The XPath @contains()@ function.
-contains :: Union a b c => Expression X.Text a -> Expression X.Text b -> Expression X.Bool c
-x `contains` y = Expression $ unExpression x `X.contains` unExpression y
+contains :: Text as -> Text as -> Bool as
+contains = binary X.contains
 
--- | The opposite of `contains`.
-doesNotContain :: Union a b c => Expression X.Text a -> Expression X.Text b -> Expression X.Bool c
-x `doesNotContain` y = Expression $ unExpression x `X.doesNotContain` unExpression y
+-- | The opposite of 'contains'.
+doesNotContain :: Text as -> Text as -> Bool as
+doesNotContain = binary X.doesNotContain
 
 -- | The XPath @count()@ function.
-count :: IsPath p u => p s n -> Number
-count = Expression . X.count . toNonSchematicPath
+count :: X.IsContext c => Path c axis n rn -> Number as
+count = Number . X.count . unPath
 
 -- | The XPath @position()@ function.
-position :: Number
-position = Expression $ X.position
+position :: Number as
+position = Number X.position
 
-binary :: Union a b c =>
-          (X.Expression x -> X.Expression y -> X.Expression z) ->
-          Expression x a ->
-          Expression y b ->
-          Expression z c
-binary op x y = Expression $ unExpression x `op` unExpression y
+unary :: (ToNonSchematic t, ToNonSchematic u, FromNonSchematic (NonSchematic u) u) =>
+         (NonSchematic t -> NonSchematic u) ->
+          t ->
+          u
+unary op x = fromNonSchematic (op $ toNonSchematic x)
+
+binary :: (ToNonSchematic t, ToNonSchematic u, ToNonSchematic v, FromNonSchematic (NonSchematic v) v) =>
+          (NonSchematic t -> NonSchematic u -> NonSchematic v) ->
+          t ->
+          u ->
+          v
+binary op x y = fromNonSchematic (toNonSchematic x `op` toNonSchematic y)
 
 -- | The XPath @or@ operator.
-(||.) :: Union a b c => Expression X.Bool a -> Expression X.Bool b -> Expression X.Bool c
+(||.) :: Bool as -> Bool as -> Bool as
 (||.) = binary (X.||.)
 infixr 2 ||.
 
 -- | The XPath @and@ operator.
-(&&.) :: Union a b c => Expression X.Bool a -> Expression X.Bool b -> Expression X.Bool c
+(&&.) :: Bool as -> Bool as -> Bool as
 (&&.) = binary (X.&&.)
 infixr 3 &&.
 
 -- | The XPath @not()@ function.
-not :: Expression X.Bool a -> Expression X.Bool a
-not = Expression . X.not . unExpression
+not :: Bool a -> Bool a
+not = Bool . X.not . unBool
 
--- | The type of an attribute.
-type Attribute a = Expression X.Text '[a]
+-- | Access the value of the attribute @a@ of a node (equivalent to XPath's @\@@).
+at :: (IsAttribute a, Member a as) => proxy a -> Text as
+at proxy = Text (X.at $ attributeName proxy)
 
--- | Access the value of a node's attribute in text form (equivalent to XPath's @\@@). It is recommend to call this
--- function once only for each attribute in your schema. The resulting value can be re-used.
-at :: T.Text -> Attribute a
-at = Expression . X.at
+-- | Type class for node attributes.
+class IsAttribute a where
+  -- | Return the name of the attribute.
+  attributeName :: proxy a -> T.Text
 
 -- | The XPath @=@ operator.
-(=.) :: (X.Eq x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
+(=.) :: (ToNonSchematic (t as), X.Eq (NonSchematic (t as))) => t as -> t as -> Bool as
 (=.) = binary (X.=.)
 infix 4 =.
 
 -- | The XPath @!=@ operator.
-(/=.) :: (X.Eq x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
+(/=.) :: (ToNonSchematic (t as), X.Eq (NonSchematic (t as))) => t as -> t as -> Bool as
 (/=.) = binary (X./=.)
 infix 4 /=.
 
 -- | The XPath @<@ operator.
-(<.) :: (X.Ord x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
+(<.) :: (ToNonSchematic (t as), X.Ord (NonSchematic (t as))) => t as -> t as -> Bool as
 (<.) = binary (X.<.)
 infix 4 <.
 
 -- | The XPath @<=@ operator.
-(<=.) :: (X.Ord x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
+(<=.) :: (ToNonSchematic (t as), X.Ord (NonSchematic (t as))) => t as -> t as -> Bool as
 (<=.) = binary (X.<=.)
 infix 4 <=.
 
 -- | The XPath @>@ operator.
-(>.) :: (X.Ord x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
+(>.) :: (ToNonSchematic (t as), X.Ord (NonSchematic (t as))) => t as -> t as -> Bool as
 (>.) = binary (X.>.)
 infix 4 >.
 
 -- | The XPath @>=@ operator.
-(>=.) :: (X.Ord x, Union a b c) => Expression x a -> Expression x b -> Expression X.Bool c
+(>=.) :: (ToNonSchematic (t as), X.Ord (NonSchematic (t as))) => t as -> t as -> Bool as
 (>=.) = binary (X.>=.)
 infix 4 >=.
 
--- | The XPath @+@ operator.
-(+.) :: Union a b c => Expression X.Number a -> Expression X.Number b -> Expression X.Number c
-(+.) = binary (+)
-infixl 6 +.
+instance P.Num (Number a) where
+  (+) = binary (+)
+  (*) = binary (*)
+  abs = unary P.abs
+  signum = unary P.signum
+  fromInteger = Number . P.fromInteger
+  negate = unary P.negate
 
--- | The XPath @-@ operator.
-(-.) :: Union a b c => Expression X.Number a -> Expression X.Number b -> Expression X.Number c
-(-.) = binary (-)
-infixl 6 -.
+-- | Type of an XPath node of type @n@.
+newtype Node (n :: *) = Node { unNode :: X.Node }
 
--- | The XPath @*@ operator.
-(*.) :: Union a b c => Expression X.Number a -> Expression X.Number b -> Expression X.Number c
-(*.) = binary (*)
-infixl 6 *.
+-- | Type class of node types.
+class IsNode n where
+  -- | Return the name of the node.
+  nodeName :: proxy n -> T.Text
 
--- | Schematic XPath equivalent of 'P.negate'
-negate :: Expression X.Number a -> Expression X.Number a
-negate = Expression . P.negate . unExpression
+-- | Create a node expression of the given type.
+namedNode :: forall n. IsNode n => Node n
+namedNode = Node . X.namedNode $ nodeName (Proxy :: Proxy n)
 
--- | Schematic XPath equivalent of 'P.abs'
-abs :: Expression X.Number a -> Expression X.Number a
-abs = Expression . P.abs . unExpression
+-- | Type family to constrain the possible relatives of nodes of type @n@ through the given axis.
+type family Relatives n axis :: [*]
 
--- | Schematic XPath equivalent of 'P.signum'
-signum :: Expression X.Number a -> Expression X.Number a
-signum = Expression . P.signum . unExpression
+-- | Type of the XPath @ancestor::@ axis.
+data Ancestor
 
--- | Schematic XPath equivalent of 'P.fromInteger'
-fromInteger :: P.Integer -> Number
-fromInteger = Expression . P.fromInteger
+-- | Type of the XPath @child::@ axis.
+data Child
 
--- | 'P.Num' instance provided only for use of numeric literals. Use '+.', '-.', '*.' operators instead.
-instance P.Num Number where
-  (+) = (+.)
-  (*) = (*.)
-  abs = abs
-  signum = signum
-  fromInteger = fromInteger
-  negate = negate
+-- | Type of the XPath @descendant::@ axis.
+data Descendant
 
--- | The type of an XPath expression for returning nodes of a variety of types.
-newtype MultiNode (s :: *) (n :: [*]) = Node X.Node
+-- | Type of the XPath @descendant-or-self::@ axis.
+data DescendantOrSelf
 
--- | Type of a single XPath node.
-type Node (s :: *) (n :: *) = MultiNode s '[n]
+-- | Type of the XPath @following::@ axis.
+data Following
 
--- | Create a node with the given name.
-namedNode :: T.Text -> Node s n
-namedNode = Node . X.namedNode
+-- | Type of the XPath @following-sibling::@ axis.
+data FollowingSibling
 
--- | A given schema 's' may be comprised of a universe of nodes 'n'.
-class SchemaNodes (s :: *) (n :: [*]) | s -> n
+-- | Type of the XPath @parent::@ axis.
+data Parent
 
--- | The XPath @node()@ function.
-node :: SchemaNodes s n => MultiNode s n
-node = Node $ X.namedNode "node()"
+-- | Type of the XPath @self::@ axis.
+data Self
 
--- | A relative XPath for a schema 's' returning a set of nodes which may be any of the type-list 'n'.
-newtype RelativePath (s :: *) (n :: [*]) = RelativePath  { unRelativePath :: X.RelativePath }
+type instance Relatives n Self = '[n]
 
--- | The type of XPaths for a schema 's' returning a set of nodes which may be any of the type-list 'n'.
-newtype Path (s :: *) (n :: [*]) = Path { unPath :: X.Path }
+-- | Type of the document root for the schema @s@. Useful in forming an XPaths which must begin from the root.
+newtype DocumentRoot s = DocumentRoot { unDocumentRoot :: X.DocumentRoot }
 
--- | Type class for allowing XPath-like operations. Do not create instances of this class.
-class X.IsPath u => IsPath (t :: * -> [*] -> *) (u :: *) | t -> u where
-  -- | Convert a schematic XPath to its non-schematic equivalent.
-  toNonSchematicPath :: t s n -> u
+type instance Relatives (DocumentRoot s) Ancestor = '[]
+type instance Relatives (DocumentRoot s) Following = '[]
+type instance Relatives (DocumentRoot s) FollowingSibling = '[]
+type instance Relatives (DocumentRoot s) Parent = '[]
 
-  -- | Unsafely (without type checking) convert a non-schematic XPath to its schematic equivalent.
-  unsafeFromNonSchematicPath :: u -> t s n
+-- | The root of the document for the schema @s@.
+root :: DocumentRoot s
+root = DocumentRoot X.root
 
-instance IsPath RelativePath X.RelativePath where
-  toNonSchematicPath = unRelativePath
+-- | Type family to infer of the axis of a location step based on the type of the step.
+type family Axis p where
+  Axis (Path c axis n rn) = axis
+  Axis (Node n) = Child
+  Axis (DocumentRoot s) = Self
 
-  unsafeFromNonSchematicPath = RelativePath
+-- | Type family to infer the type of the node selected by the first location step in a path.
+type family SelectNode p where
+  SelectNode (Path c axis n rn) = n
+  SelectNode (Node n) = n
+  SelectNode (DocumentRoot s) = DocumentRoot s
 
-instance IsPath Path X.Path where
-  toNonSchematicPath = unPath
+-- | Type family to infer the node selected by the last location step in a path.
+type family ReturnNode p where
+  ReturnNode (Path c axis n rn) = rn
+  ReturnNode (Node n) = n
+  ReturnNode (DocumentRoot s) = DocumentRoot s
 
-  unsafeFromNonSchematicPath = Path
+-- | Constraint for types from which a path can be inferred.
+type PathLike p = (ToNonSchematic p, X.PathLike (NonSchematic p))
 
--- | Witnesses that a node of type 'n' may have an attribute of type 'a'.
-class NodeAttribute n a
-
--- | Witnesses that a node of type 'n' may have zero or more of a set of attributes 'a'.
-class NodeAttributes (n :: *) (a :: [*])
-
-instance (NodeAttribute n h, NodeAttributes n t) => NodeAttributes n (h ': t)
-
-instance NodeAttributes n '[]
-
--- | Witnesses that a set of nodes 'n' may have zero or more of a set of attributes 'a'.
-class NodesAttributes (n :: [*]) (a :: [*])
-
-instance (NodeAttributes n a, NodesAttributes n' a) => NodesAttributes (n ': n') a
-
-instance NodesAttributes '[] a
-
-class Filterable (t :: * -> [*] -> *) where
-  -- | Filter a set of nodes by the given predicate.
-  (#) :: NodesAttributes n a => t s n -> Expression X.Bool a -> t s n
-  infixl 3 #
-
-instance Filterable MultiNode where
-  Node n # Expression pred = Node $ n X.# pred
-
-instance Filterable RelativePath where
-  RelativePath rp # Expression pred = RelativePath $ rp X.# pred
-
-instance Filterable Path where
-  Path rp # Expression pred = Path $ rp X.# pred
-
--- | The XPath (non-abbreviated) @/@ operator.
-(./.) :: IsPath p u => p s m -> RelativePath s n -> p s n
-p1 ./. p2 = unsafeFromNonSchematicPath $ toNonSchematicPath p1 X../. toNonSchematicPath p2
-infixl 2 ./.
-
--- | The XPath abbreviated @/@ operator.
-(/.) :: IsPath p u => p s m -> MultiNode s n -> p s n
-p /. (Node n) = unsafeFromNonSchematicPath $ toNonSchematicPath p X./. n
-infixl 2 /.
+-- | The XPath @/@ operator.
+(/.) :: (Member (SelectNode q) (Relatives (ReturnNode p) (Axis q)),
+          PathLike p,
+          PathLike q,
+          X.SlashOperator (NonSchematic p) (NonSchematic q)) =>
+          p ->
+          q ->
+          Path (X.Context (NonSchematic p)) (Axis p) (SelectNode p) (ReturnNode q)
+(/.) = binary (X./.)
+infixl 8 /.
 
 -- | The XPath @//@ operator.
-(//.) :: IsPath p u => p s m -> MultiNode s n -> p s n
-p //. (Node n) = unsafeFromNonSchematicPath $ toNonSchematicPath p X.//. n
-infixl 2 //.
+(//.) :: (Member (SelectNode q) (Relatives (ReturnNode p) Descendant),
+          PathLike p,
+          PathLike q,
+          X.DoubleSlashOperator (NonSchematic p) (NonSchematic q)) =>
+          p ->
+          q ->
+          Path (X.Context (NonSchematic p)) (Axis p) (SelectNode p) (ReturnNode q)
+(//.) = binary (X.//.)
+infixl 8 //.
 
--- | Fix a relative path to begin from the document root (i.e. create an absolute path).
-fromRoot :: RelativePath s n -> Path s n
-fromRoot = unsafeFromNonSchematicPath . X.fromRoot . toNonSchematicPath
+-- | Type family which contrains the possible attributes a node of type @n@ may have.
+type family Attributes n :: [*]
+
+-- | Filter the path-like expression using the given predicate(s). The predicates must only make use of the attributes
+-- of the type of node selected by the path, otherwise it will not type check.
+(#) :: (PathLike p,
+        ToNonSchematic p,
+        FromNonSchematic (NonSchematic p) p,
+        X.Filterable (NonSchematic p)) =>
+        p -> [Bool (Attributes (ReturnNode p))] -> p
+p # preds = fromNonSchematic $ toNonSchematic p X.# (toNonSchematic <$> preds)
+infixl 9 #
 
 -- | The XPath @ancestor::@ axis.
-ancestor :: MultiNode s n -> RelativePath s n
-ancestor (Node n) = unsafeFromNonSchematicPath $ X.ancestor n
+ancestor :: Node n -> Path X.CurrentContext Ancestor n n
+ancestor (Node n) = Path $ X.ancestor n
 
 -- | The XPath @child::@ axis.
-child :: MultiNode s n -> RelativePath s n
-child (Node n) = unsafeFromNonSchematicPath $ X.child n
+child :: Node n -> Path X.CurrentContext Child n n
+child (Node n) = Path $ X.child n
 
 -- | The XPath @descendant::@ axis.
-descendant :: MultiNode s n -> RelativePath s n
-descendant (Node n) = unsafeFromNonSchematicPath $ X.descendant n
+descendant :: Node n -> Path X.CurrentContext Descendant n n
+descendant (Node n) = Path $ X.descendant n
 
 -- | The XPath @descendant-or-self::@ axis.
-descendantOrSelf :: MultiNode s n -> RelativePath s n
-descendantOrSelf (Node n) = unsafeFromNonSchematicPath $ X.descendantOrSelf n
+descendantOrSelf :: Node n -> Path X.CurrentContext DescendantOrSelf n n
+descendantOrSelf (Node n) = Path $ X.descendantOrSelf n
 
 -- | The XPath @following::@ axis.
-following :: MultiNode s n -> RelativePath s n
-following (Node n) = unsafeFromNonSchematicPath $ X.following n
+following :: Node n -> Path X.CurrentContext Following n n
+following (Node n) = Path $ X.following n
 
 -- | The XPath @following-sibling::@ axis.
-followingSibling :: MultiNode s n -> RelativePath s n
-followingSibling (Node n) = unsafeFromNonSchematicPath $ X.followingSibling n
+followingSibling :: Node n -> Path X.CurrentContext FollowingSibling n n
+followingSibling (Node n) = Path $ X.followingSibling n
 
 -- | The XPath @parent::@ axis.
-parent :: MultiNode s n -> RelativePath s n
-parent (Node n) = unsafeFromNonSchematicPath $ X.parent n
-
--- | The XPath @//@ operator.
-doubleSlash :: MultiNode s n -> Path s n
-doubleSlash (Node n) = unsafeFromNonSchematicPath $ X.doubleSlash n
+parent :: Node n -> Path X.CurrentContext Parent n n
+parent (Node n) = Path $ X.parent n
 
 -- | Display an XPath expression. This is useful for sending the XPath expression to a separate XPath evaluator e.g.
 -- a web browser.
-show :: IsPath p u => p s n -> T.Text
-show = X.show . toNonSchematicPath
+show :: (PathLike p, X.IsExpression (NonSchematic p)) => p -> T.Text
+show = X.show . toNonSchematic

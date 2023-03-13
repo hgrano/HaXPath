@@ -1,7 +1,6 @@
 module HaXPath.Operators (
   (#),
   (&&.),
-  (./.),
   (/.),
   (//.),
   (/=.),
@@ -10,7 +9,8 @@ module HaXPath.Operators (
   (=.),
   (>.),
   (>=.),
-  (||.)
+  (||.),
+  (|.)
 ) where
 
 import           HaXPath
