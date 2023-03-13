@@ -57,7 +57,9 @@ p1FirstB = X.root //. a /. b # [X.position =. 1]
 p1FilterById :: X.AbsolutePath
 p1FilterById = X.root //. a # [X.at "id" =. "abc"] /. b
 
--- Composition and operators
+-- Note that the second argument to '#' must represent an XPath boolean value, otherwise it will not type check.
+
+-- XPaths can be re-used and composed together in a type-safe manner as shown
 p2 :: X.RelativePath
 p2 = c /. d
 

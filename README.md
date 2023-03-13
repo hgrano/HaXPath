@@ -25,8 +25,6 @@ Some basic examples:
 
 https://github.com/hgrano/HaXPath/tree/master/examples/HaXPath/Examples.hs
 
-Note the second argument to `#` must represent an XPath boolean value, otherwise it will not type check.
-
 ### Schematic API
 The schematic API provides further constraints than the standard API by only allowing paths that are valid with respect
 to some custom schema. Take for example the following XML document for a restaurant menu:
