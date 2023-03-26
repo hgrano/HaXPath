@@ -111,14 +111,18 @@ true = Bool X.true
 false :: S.IsString s => Bool' as s
 false = Bool X.false
 
--- | The type of simple numeric expressions which depend on the value of the attribute(s) @as@.
+-- | The type of simple numeric expressions which depend on the value of the attribute(s) @as@ and can be showed as the
+-- string type @s@.
 newtype Number' (as :: [Type]) s = Number { unNumber :: X.Number' s }
 
+-- | 'Number'' specialised so it can be shown as 'P.String'
 type Number as = Number' as P.String
 
--- | The type of simple text expressions which depend on the value of the attribute(s) @as@.
+-- | The type of simple text expressions which depend on the value of the attribute(s) @as@ and can be showed as the
+-- string type @s@.
 newtype Text' (as :: [Type]) s = Text { unText :: X.Text' s }
 
+-- | 'Text'' specialised so it can be shown as 'P.String'
 type Text as = Text' as P.String
 
 -- | The type of path expressions which can be showed as the string type @s@ and are formed by these steps:
@@ -132,12 +136,16 @@ newtype Path' c axis n rn s = Path { unPath :: X.Path' c s }
 -- | 'Path'' specialised so it can be shown as 'P.String'.
 type Path c axis n rn = Path' c axis n rn P.String
 
+-- | An XPath beginning from the document root for the schema @sc@, returning a node of type @rn@.
 type AbsolutePath' sc rn = Path' X.RootContext Self (DocumentRoot sc) rn
 
+-- | 'AbsolutePath'' specialised so it can be shown as 'P.String'
 type AbsolutePath sc rn = (AbsolutePath' sc rn) P.String
 
+-- | An XPath beginning from the current context.
 type RelativePath' = Path' X.CurrentContext
 
+-- | 'RelativePath'' specialised so it can be shown as 'P.String'
 type RelativePath axis n rn = RelativePath' axis n rn P.String
 
 instance S.IsString s => S.IsString (Text' as s) where
@@ -260,6 +268,7 @@ class IsAttribute a where
   -- | Return the name of the attribute.
   attributeName :: S.IsString s => proxy a -> s
 
+-- | Type family which returns the node attribute(s) used within a given expression.
 type family AttributesUsed t where
   AttributesUsed (Bool' as s) = as
   AttributesUsed (Text' as s) = as
@@ -321,9 +330,10 @@ instance S.IsString s => P.Num (Number' a s) where
   fromInteger = Number . P.fromInteger
   negate = unary P.negate
 
--- | Type of an XPath node of type @n@.
+-- | Type of an XPath node of type @n@ which can be showed as the string type @s@.
 newtype Node' (n :: Type) s = Node { unNode :: X.Node' s }
 
+-- | 'Node'' specialised so it can be shown as 'P.String'.
 type Node n = Node' n P.String
 
 -- | Type class of node types.
@@ -364,9 +374,11 @@ data Self
 
 type instance Relatives n Self = '[n]
 
--- | Type of the document root for the schema @s@. Useful in forming an XPaths which must begin from the root.
+-- | Type of the document root for the schema @sc@ which can be showed as the string type @s@. Useful in forming an
+-- XPaths which must begin from the root.
 newtype DocumentRoot' sc s = DocumentRoot { unDocumentRoot :: X.DocumentRoot' s }
 
+-- | 'DocumentRoot'' specialised so it can be shown as 'P.String'.
 type DocumentRoot sc = DocumentRoot' sc P.String
 
 type instance Relatives (DocumentRoot' sc s) Ancestor = '[]
@@ -378,6 +390,7 @@ type instance Relatives (DocumentRoot' sc s) Parent = '[]
 root' :: DocumentRoot' sc s
 root' = DocumentRoot X.root'
 
+-- | 'root'' specialised so it can be shown as 'P.String'.
 root :: DocumentRoot sc
 root = root'
 

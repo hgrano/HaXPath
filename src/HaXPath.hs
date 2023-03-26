@@ -335,7 +335,7 @@ type Node = Node' P.String
 instance IsExpression (Node' s) where
   toExpression = unNode
 
--- | An XPath beginning from some context `c` (either the root context or the current context).
+-- | An XPath beginning from some context @c@ (either the root context or the current context).
 newtype Path' c s = Path { unPath :: Expression s }
 
 -- | 'Path'' specialised so it can be shown as 'P.String'.
@@ -359,7 +359,8 @@ data CurrentContext
 -- | Type to indicate the XPath begins from the document root.
 data RootContext
 
--- | Class of valid types for the type parameter `c` in 'Path'. Library users should not create instances of this class.
+-- | Class of valid types for the type parameter @c@ in 'Path''. Library users should not create instances of this
+-- class.
 class IsContext c where
   toPathBegin :: proxy c -> PathBegin
 
@@ -412,8 +413,8 @@ type family (Showed p) where
   Showed (Node' s) = s
   Showed (DocumentRoot' s) = s
 
--- | Constraint for path-like types - i.e. they either a 'Path' or otherwise can be converted to one using abbreviated
--- syntax rules.
+-- | Constraint for path-like types - i.e. either a 'Path'' or otherwise a type that can be converted to one using
+-- abbreviated syntax rules.
 type PathLike p = IsContext (Context p)
 
 -- | Type class for the XPath @/@ operator. It can operate on multiple types as the axes can be inferred based on
