@@ -1,13 +1,17 @@
 cabal-version: 1.12
 
-name:           HaXPath
-version:        0.2.0.0
-description:    XPath-generating embedded domain specific language.
-homepage:       https://github.com/hgrano/HaXPath
-bug-reports:    https://github.com/hgrano/HaXPath/issues
-author:         Huw Grano
-maintainer:     huw.grano@gmail.com
-build-type:     Simple
+name:            HaXPath
+version:         0.2.0.0
+description:     XPath-generating embedded domain specific language.
+homepage:        https://github.com/hgrano/HaXPath
+bug-reports:     https://github.com/hgrano/HaXPath/issues
+author:          Huw Grano
+maintainer:      huw.grano@gmail.com
+category:        XML
+build-type:      Simple
+license:         BSD3
+license-file:    LICENSE
+extra-doc-files: README.md
 
 source-repository head
   type: git

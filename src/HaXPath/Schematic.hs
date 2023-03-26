@@ -7,6 +7,8 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 
+-- | Wrapper over the "HaXPath" module which supports stronger type gurantuees such that XPaths must be valid with
+-- respect to the document schema. This module should be used as a qualified import.
 module HaXPath.Schematic (
   -- * Basic data types
   ToNonSchematic(..),

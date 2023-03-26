@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
+-- | The core module of the XPath-generating DSL. This module should be used as a qualified import.
 module HaXPath(
   -- * Basic data types
   IsExpression,
@@ -418,6 +419,7 @@ type PathLike p = IsContext (Context p)
 -- | Type class for the XPath @/@ operator. It can operate on multiple types as the axes can be inferred based on
 -- XPath's abbreviated syntax. Library users should not create instances of this class.
 class (PathLike p, PathLike q, Showed p ~ Showed q) => SlashOperator p q where
+  -- | The XPath @/@ operator.
   (/.) :: p -> q -> Path' (Context p) (Showed q)
   infixl 8 /.
 
@@ -448,6 +450,7 @@ instance SlashOperator (DocumentRoot' s) (Node' s) where
 -- | Type class for the XPath @//@ operator. It can operate on multiple types as the axes can be inferred based on
 -- XPath's abbreviated syntax. Library users should not create instances of this class.
 class (PathLike p, PathLike q, Showed p ~ Showed q) => DoubleSlashOperator p q where
+  -- | The XPath @//@ operator.
   (//.) :: p -> q -> Path' (Context p) (Showed q)
   infixl 8 //.
 
@@ -535,6 +538,7 @@ infix 7 |.
 
 -- | Type class to allow filtering of node sets. Library users should not create instances of this class.
 class (IsExpression p, PathLike p) => Filterable p where
+  -- | Filter the nodes returned by @p@ such that they match the list of predicates.
   (#) :: Showed p ~ s => p -> [Bool' s] -> p
   infixl 9 #
 
