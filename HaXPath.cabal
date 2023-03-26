@@ -1,17 +1,13 @@
 cabal-version: 1.12
 
-name:            HaXPath
-version:         0.2.0.0
-description:     XPath-generating embedded domain specific language.
-homepage:        https://github.com/hgrano/HaXPath
-bug-reports:     https://github.com/hgrano/HaXPath/issues
-author:          Huw Grano
-maintainer:      huw.grano@gmail.com
-category:        XML
-build-type:      Simple
-license:         BSD3
-license-file:    LICENSE
-extra-doc-files: README.md
+name:           HaXPath
+version:        0.2.0.0
+description:    XPath-generating embedded domain specific language.
+homepage:       https://github.com/hgrano/HaXPath
+bug-reports:    https://github.com/hgrano/HaXPath/issues
+author:         Huw Grano
+maintainer:     huw.grano@gmail.com
+build-type:     Simple
 
 source-repository head
   type: git
@@ -28,7 +24,8 @@ library
   ghc-options: -Wall -Werror -O
   build-depends:
       base >= 4.6 && < 5
-    , HList >= 0.4.0.0 && < 0.6.0.0
+    , HList >= 0.4.0.0 && < 0.6
+    , text >= 0.11.3
   default-language: Haskell2010
 
 test-suite test
@@ -41,11 +38,9 @@ test-suite test
       test
   ghc-options: -Wall -Werror -O
   build-depends:
-      base
-    , bytestring >= 0.11.1.0
+      base >= 4.6 && < 5
     , HaXPath
     , HUnit
-    , text
   default-language: Haskell2010
 
 test-suite examples
@@ -55,8 +50,9 @@ test-suite examples
       HaXPath.Examples
     , HaXPath.Schematic.Examples
   build-depends:
-      base
+      base >= 4.6 && < 5
     , HaXPath
+    , text >= 0.11.3
   hs-source-dirs:
       examples
   ghc-options: -Wall -Werror -O
