@@ -24,7 +24,7 @@ p0 = X.child a /. X.child b
 
 -- The axes can be inferred using abbreviated syntax
 p0Abbrev :: X.RelativePath
-p0Abbrev = a /. b 
+p0Abbrev = a /. b
 
 -- The XPath "/descendant-or-self::node()/child::a/child::b"
 -- root is a virtual node, and can be used only at the beginning of a path to indicate it is an absolute path

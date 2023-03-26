@@ -358,10 +358,10 @@ class IsPath t where
   toPath :: t -> Path
 
 instance IsPath RelativePath where
-  rp ./. RelativeNode P.Nothing axis n = RelativeNode (P.Just rp) axis n
+  rp ./. RelativeNode P.Nothing axis n     = RelativeNode (P.Just rp) axis n
   rp ./. RelativeNode (P.Just prev) axis n = RelativeNode (P.Just $ rp ./. prev) axis n
-  rp ./. Bracketed P.Nothing rp' pred = Bracketed (P.Just rp) rp' pred
-  rp ./. b@(Bracketed (P.Just _) _ _) = Bracketed (P.Just rp) b []
+  rp ./. Bracketed P.Nothing rp' pred      = Bracketed (P.Just rp) rp' pred
+  rp ./. b@(Bracketed (P.Just _) _ _)      = Bracketed (P.Just rp) b []
 
   toPath rp = Expression $ Path Relative rp []
 
@@ -400,9 +400,9 @@ nonPathError :: a
 nonPathError = P.error "HaXPath internal error: unexpected non-Path expression"
 
 instance IsPath Path where
-  Expression p@(Path _ _ _) ./. rp' = Expression $ BracketAroundLeftPath p rp' []
+  Expression p@(Path _ _ _) ./. rp'                  = Expression $ BracketAroundLeftPath p rp' []
   Expression p@(BracketAroundLeftPath _ _ _) ./. rp' = Expression $ BracketAroundLeftPath p rp' []
-  _ ./. _ = nonPathError
+  _ ./. _                                            = nonPathError
 
   toPath = P.id
 

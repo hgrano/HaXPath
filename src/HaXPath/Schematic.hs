@@ -86,9 +86,9 @@ module HaXPath.Schematic (
 ) where
 
 import           Data.HList.CommonMain (HMember)
+import           Data.Kind             (Type)
 import           Data.Proxy            (Proxy (Proxy))
 import qualified Data.String           as S
-import           Data.Kind             (Type)
 import qualified HaXPath               as X
 import           Prelude               (($), (*), (+), (.), (<$>))
 import qualified Prelude               as P
