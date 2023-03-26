@@ -2,20 +2,25 @@
 
 module HaXPath.Test (suite) where
 
+import           Data.ByteString   (ByteString)
+import qualified Data.ByteString.Builder as BSBuilder
+import           Data.String       (IsString)
+import           Data.Text         (Text)
+import qualified Data.Text.Lazy.Builder as TBuilder
 import qualified HaXPath           as X
 import           HaXPath.Operators
 import qualified Test.HUnit        as H
 
-a :: X.Node
+a :: IsString s => X.Node' s
 a = X.namedNode "a"
 
-b :: X.Node
+b :: IsString s => X.Node' s
 b = X.namedNode "b"
 
-c :: X.Node
+c :: IsString s => X.Node' s
 c = X.namedNode "c"
 
-d :: X.Node
+d :: IsString s => X.Node' s
 d = X.namedNode "d"
 
 testAppend :: H.Test
@@ -181,6 +186,26 @@ testPredicate = H.TestLabel "predicates" . H.TestCase $ do
     "/(descendant-or-self::node()/child::a[position() = 2])/child::b"
     (X.show $ X.root //. a # [X.position =. 2] /. b)
 
+testShowGeneric :: H.Test
+testShowGeneric = H.TestLabel "show generic" . H.TestCase $ do
+  H.assertEqual "Show Text" (expectedShow :: Text) (X.show' path)
+  H.assertEqual "Show ByteString" (expectedShow :: ByteString) (X.show' path)
+  H.assertEqual
+    "Show ByteString from builder"
+    (BSBuilder.toLazyByteString expectedShow)
+    (BSBuilder.toLazyByteString $ X.show' path)
+  H.assertEqual
+    "Show Text from builder"
+    (TBuilder.toLazyText expectedShow)
+    (TBuilder.toLazyText $ X.show' path)
+
+  where
+    expectedShow :: IsString s => s
+    expectedShow = "child::a/child::b[@id = \"hello \\\"world\\\"\"]"
+
+    path :: IsString s => X.Path' X.CurrentContext s
+    path = a /. b # [X.at "id" =. "hello \"world\""]
+
 testUnion :: H.Test
 testUnion = H.TestLabel "union" . H.TestCase $ do
   H.assertEqual "Union absolute paths" "(/child::a/child::b) | (/child::c)" (X.show $ X.root /. a /. b |. X.root /. c)
@@ -196,5 +221,6 @@ suite = H.TestLabel "HaXPath" $ H.TestList [
     testNum,
     testOrd,
     testPredicate,
+    testShowGeneric,
     testUnion
   ]

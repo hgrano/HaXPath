@@ -16,8 +16,8 @@ data MenuSchema
 -- Type of the document root in our schema
 type MenuRoot = S.DocumentRoot MenuSchema
 
--- Type of absolute paths in our schema
-type AbsolutePath = S.AbsolutePath MenuSchema
+-- Type of absolute paths in our schema which return nodes of type rn
+type AbsolutePath rn = S.AbsolutePath MenuSchema rn
 
 root :: MenuRoot
 root = S.root
