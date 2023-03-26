@@ -1,12 +1,12 @@
-{-# LANGUAGE DataKinds             #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies      #-}
 
 module HaXPath.Schematic.Examples where
 
-import           Data.Proxy                  (Proxy(Proxy))
+import           Data.Proxy                  (Proxy (Proxy))
 import qualified HaXPath.Schematic           as S
 import           HaXPath.Schematic.Operators
 
@@ -16,8 +16,8 @@ data MenuSchema
 -- Type of the document root in our schema
 type MenuRoot = S.DocumentRoot MenuSchema
 
--- Type of absolute paths in our schema
-type AbsolutePath = S.AbsolutePath MenuSchema
+-- Type of absolute paths in our schema which return nodes of type rn
+type AbsolutePath rn = S.AbsolutePath MenuSchema rn
 
 root :: MenuRoot
 root = S.root
