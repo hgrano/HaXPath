@@ -35,184 +35,139 @@ module HaXPath(
   -- * Basic combinators
   not,
   (&&.),
-  (||.),
-  contains,
-  doesNotContain,
-  Eq,
-  (=.),
+  (/.),
+  (//.),
   (/=.),
   Ord,
   (<.),
   (<=.),
   (>.),
   (>=.),
-  position,
-  -- * Paths
-  CurrentContext,
-  RootContext,
-  IsContext,
-  Context,
-  Path',
-  Path,
-  AbsolutePath',
-  AbsolutePath,
-  RelativePath',
-  RelativePath,
-  PathLike,
-  show',
-  show,
-  -- * Axes
+  (||.),
   ancestor,
   child,
+  contains,
+  count,
   descendant,
   descendantOrSelf,
+  doesNotContain,
+  doubleSlash,
+  Eq,
+  Expression,
+  Filterable(..),
   following,
   followingSibling,
+  fromRoot,
+  IsPath(..),
+  Lit(..),
+  namedNode,
+  node,
+  Node,
+  NodeSet,
+  not,
+  Number,
+  Ord,
   parent,
-  self,
-  -- * Path combinators
-  SlashOperator(..),
-  DoubleSlashOperator(..),
-  Filterable(..),
-  count,
-  (|.)
+  Path,
+  position,
+  RelativePath,
+  show,
+  text,
+  Text
 ) where
 
-import           Data.List (intercalate)
-import           Data.List.NonEmpty (NonEmpty((:|)))
-import           Data.Proxy  (Proxy (Proxy))
-import Data.Semigroup (sconcat)
+import           Data.Maybe  (isJust)
 import qualified Data.String as S
-import           Prelude     (($), (*), (+), (-), (.), (<$>), (<>), (==))
+import qualified Data.Text   as T
+import           Prelude     (($), (*), (+), (-), (.), (<$>), (<>))
 import qualified Prelude     as P
 
--- | XPath textual (string) data type, which can be showed as the string type @s@.
-newtype Text' s = Text { unText :: Expression s }
+-- | XPath textual (string) data type.
+data Text
 
--- | 'Text'' specialised so it can be shown as 'P.String'.
-type Text = Text' P.String
+-- | XPath numeric data type.
+data Number
 
--- | XPath numeric data type, which can be showed as the string type @s@.
-newtype Number' s = Number { unNumber :: Expression s }
-
--- | 'Number'' specialised so it can be shown as 'P.String'.
-type Number = Number' P.String
-
--- | XPath boolean data type, which can be showed as the string type @s@.
-newtype Bool' s = Bool { unBool :: Expression s }
-
--- | 'Bool'' specialised so it can be shown as 'P.String'.
-type Bool = Bool' P.String
-
--- | XPath @true()@ value.
-true :: S.IsString s => Bool' s
-true = Bool $ Function "true" []
-
--- | XPath @false()@ value.
-false :: S.IsString s => Bool' s
-false = Bool $ Function "false" []
+-- | XPath boolean data type.
+data Bool
 
 data PathBegin = FromRootContext | FromCurrentContext deriving (P.Eq)
 
--- Internal data type to represent an XPath expression using the string-like type s.
-data Expression s = Function s [Expression s] |
-                    -- Apply the named function to zero or more arguments.
-                    Operator s (Expression s) (Expression s) |
-                    -- Apply a binary operator to the two operands.
-                    Attribute s |
-                    -- Access the given attribute of the node (@).
-                    TextLiteral s |
-                    -- Text value in quotes.
-                    IntegerLiteral P.Integer |
-                    -- Literal integer (XPath number).
-                    NamedNode s |
-                    -- Select node with the provided name.
-                    FilteredNode (Expression s) [Expression s] |
-                    LocationStep Axis (Expression s) |
-                    -- From current context move along the given axis and select nodes matching the expression.
-                    PathFrom PathBegin (Expression s) (P.Maybe (Expression s)) [Expression s]
-                    -- From the starting point, take the first path (expression), then follow the next path (expression)
-                    -- (if present) and finally filter by zero or more boolean (expressions).
+data Expression' = Function T.Text [Expression'] |
+                   Operator T.Text Expression' Expression' |
+                   Attribute T.Text |
+                   TextLiteral T.Text |
+                   IntegerLiteral P.Integer |
+                   Path PathType RelativePath [Expression'] |
+                   BracketAroundLeftPath Expression' RelativePath [Expression']
 
--- | Class of types which can be used to form a valid XPath expression. Library users should not create instances of
--- this class.
-class IsExpression a where
-  toExpression :: a -> Expression (Showed a)
-
-instance IsExpression (Text' s) where
-  toExpression = unText
-
-instance IsExpression (Number' s) where
-  toExpression = unNumber
-
-instance IsExpression (Bool' s) where
-  toExpression = unBool
-
-showExpression :: (S.IsString s, P.Show s) => Expression s -> [s]
-showExpression (Function f es) = [f, "("] <> args <> [")"]
+showExpression :: Expression' -> T.Text
+showExpression (Function f es) = f <> "(" <> args <> ")"
   where
-    args = intercalate [", "] $ showExpression <$> es
-showExpression (Operator o a b) =
-  showOperand a <> [" ", o, " "] <> showOperand b
+    args = T.intercalate ", " $ showExpression <$> es
+showExpression (Operator o a b) = showWithBracket a <> " " <> o <> " " <> showWithBracket b
   where
-    showOperand e@(TextLiteral _)    = showExpression e
-    showOperand e@(IntegerLiteral _) = showExpression e
-    showOperand e@(Function _ _)     = showExpression e
-    showOperand e@(Attribute _)      = showExpression e
-    showOperand e                    = "(" : showExpression e <> [")"]
+    needsBracket (Operator _ _ _)              = P.True
+    needsBracket (Path _ _ _)                  = P.True
+    needsBracket (BracketAroundLeftPath _ _ _) = P.True
+    needsBracket _                             = P.False
 
-showExpression (Attribute a) = ["@", a]
-showExpression (TextLiteral t) = [S.fromString $ P.show t]
-showExpression (IntegerLiteral i) = [S.fromString $ P.show i]
-showExpression (PathFrom begin p pNextMay preds) =
-  let prefix = case begin of
-        FromRootContext    -> "/"
-        FromCurrentContext -> ""
-  in
-  let showPath x = case x of
-        LocationStep _ _ -> showExpression x
-        _                -> "(" : showExpression x <> [")"]
-  in
-  let fullPShowed = prefix : showPath p <> case pNextMay of
-        P.Nothing    -> []
-        P.Just pNext -> "/" : showPath pNext
-  in
-  showWithPredicates fullPShowed preds
-showExpression (LocationStep axis n) = showAxis axis : ["::"] <> showExpression n
-showExpression (NamedNode n) = [n]
-showExpression (FilteredNode n preds) = showExpression n <> showPredicates preds
+    showWithBracket e = if needsBracket e then "(" <> showExpression e <> ")" else showExpression e
 
-showPredicates :: (S.IsString s, P.Show s) => [Expression s] -> [s]
-showPredicates preds =  "[" : intercalate ["]["] (showExpression <$> preds) <> ["]"]
+showExpression (Attribute a) = "@" <> a
+showExpression (TextLiteral t) = "'" <> t <> "'"
+showExpression (IntegerLiteral i) = T.pack $ P.show i
+showExpression (Path t p es) =
+  let prefix = case t of
+        Relative -> ""
+        Absolute -> "/"
+  in
+  showWithFilters (prefix <> showRelativePath p) es
+showExpression (BracketAroundLeftPath lp rp es) =
+  showWithFilters (showExpression lp <> showExpression (Path Absolute rp [])) es
 
-showWithPredicates :: (S.IsString s, P.Show s) => [s] -> [Expression s] -> [s]
-showWithPredicates s es
-  | P.not (P.null es) = "(" : s <> [")"] <> showPredicates es
+showWithFilters :: T.Text -> [Expression'] -> T.Text
+showWithFilters s es
+  | P.not (P.null es) = "(" <> s <> ")" <> showExpressions es
   | P.otherwise = s
 
--- | Display an XPath expression. This is useful to sending the XPath expression to a separate XPath evaluator e.g.
--- a web browser.
-show' :: (PathLike p,
-          IsExpression p,
-          P.Monoid (Showed p),
-          S.IsString (Showed p),
-          P.Show (Showed p)) =>
-          p -> Showed p
-show' = sconcat . (P.mempty :|) . showExpression . toExpression
+showExpressionBracketed :: Expression' -> T.Text
+showExpressionBracketed e = "[" <> showExpression e <> "]"
 
--- | Specialisation of 'show'' to only generate 'P.String's.
-show :: (PathLike p, IsExpression p, Showed p ~ P.String) => p -> P.String
-show = show'
+showExpressions :: [Expression'] -> T.Text
+showExpressions = T.concat . P.fmap showExpressionBracketed . P.reverse
 
-instance S.IsString s => S.IsString (Text' s) where
-  fromString = Text . TextLiteral . S.fromString
+-- | Opaque representation of an XPath expression.
+newtype Expression t = Expression { unExpression :: Expression' }
 
-boolToInt :: Bool' s -> Number' s
-boolToInt (Bool b) = Number b
+class Lit h x | h -> x where
+  -- | Create an XPath literal value from a Haskell value.
+  lit :: h -> Expression x
+
+instance Lit P.Bool Bool where
+  lit b = Expression $ Function (if b then "true" else "false") []
+
+instance Lit P.Integer Number where
+  lit = Expression . IntegerLiteral
+
+instance Lit T.Text Text where
+  lit = Expression . TextLiteral
+
+instance S.IsString (Expression Text) where
+  fromString = lit . T.pack
+
+-- | The type of XPaths.
+type Path = Expression NodeSet
+
+unsafeCast :: Expression t -> Expression u
+unsafeCast (Expression e) = Expression e
+
+boolToInt :: Expression Bool -> Expression Number
+boolToInt = unsafeCast
 
 -- | Access the value of a node's attribute in text form (equivalent to XPath's @\@@).
-at :: s -> Text' s
-at = Text . Attribute
+at :: T.Text -> Expression Text
+at = Expression . Attribute
 
 -- | Type class of XPath types that can be compared for equality. Library users should not create instances of this
 -- class.
@@ -223,13 +178,13 @@ instance Eq (Number' s)
 instance Eq (Bool' s)
 
 -- | The XPath @=@ operator.
-(=.) :: (Eq a, S.IsString (Showed a)) => a -> a -> Bool' (Showed a)
-x =. y = Bool $ Operator "=" (toExpression x) (toExpression y)
+(=.) :: Eq a => Expression a -> Expression a -> Expression Bool
+x =. y = Expression $ Operator "=" (unExpression x) (unExpression y)
 infix 4 =.
 
 -- | The XPath @!=@ operator.
-(/=.) :: (Eq a, S.IsString (Showed a)) => a -> a -> Bool' (Showed a)
-x /=. y = Bool $ Operator "!=" (toExpression x) (toExpression y)
+(/=.) :: Eq a => Expression a -> Expression a -> Expression Bool
+x /=. y = Expression $ Operator "!=" (unExpression x) (unExpression y)
 infix 4 /=.
 
 -- | Type class of XPath types that can be ordered. Library users should not create instances of this class.
@@ -240,27 +195,27 @@ instance Ord (Number' s)
 instance Ord (Bool' s)
 
 -- | The XPath @<@ operator.
-(<.) :: (Ord a, S.IsString (Showed a)) => a -> a -> Bool' (Showed a)
-x <. y = Bool $ Operator "<" (toExpression x) (toExpression y)
+(<.) :: Ord a => Expression a -> Expression a -> Expression Bool
+x <. y = Expression $ Operator "<" (unExpression x) (unExpression y)
 infix 4 <.
 
 -- | The XPath @<=@ operator.
-(<=.) :: (Ord a, S.IsString (Showed a)) => a -> a -> Bool' (Showed a)
-x <=. y = Bool $ Operator "<=" (toExpression x) (toExpression y)
+(<=.) :: Ord a => Expression a -> Expression a -> Expression Bool
+x <=. y = Expression $ Operator "<=" (unExpression x) (unExpression y)
 infix 4 <=.
 
 -- | The XPath @>@ operator.
-(>.) :: (Ord a, S.IsString (Showed a)) => a -> a -> Bool' (Showed a)
-x >. y = Bool $ Operator ">" (toExpression x) (toExpression y)
+(>.) :: Ord a => Expression a -> Expression a -> Expression Bool
+x >. y = Expression $ Operator ">" (unExpression x) (unExpression y)
 infix 4 >.
 
 -- | The XPath @>=@ operator.
-(>=.) :: (Ord a, S.IsString (Showed a)) => a -> a -> Bool' (Showed a)
-x >=. y = Bool $ Operator ">=" (toExpression x) (toExpression y)
+(>=.) :: Ord a => Expression a -> Expression a -> Expression Bool
+x >=. y = Expression $ Operator ">=" (unExpression x) (unExpression y)
 infix 4 >=.
 
-instance  S.IsString s => P.Num (Number' s) where
-  Number x + Number y = Number $ Operator "+" x y
+instance P.Num (Expression Number) where
+  Expression x + Expression y = Expression $ Operator "+" x y
 
   Number x - Number y = Number $ Operator "-" x y
 
@@ -273,38 +228,38 @@ instance  S.IsString s => P.Num (Number' s) where
   fromInteger = Number . IntegerLiteral
 
 -- | The XPath @position()@ function.
-position :: S.IsString s => Number' s
-position = Number $ Function "position" []
+position :: Expression Number
+position = Expression $ Function "position" []
 
 -- | The XPath @text()@ function.
-text :: S.IsString s => Text' s
-text = Text $ Function "text" []
+text :: Expression Text
+text = Expression $ Function "text" []
 
 -- | The XPath @contains()@ function.
-contains :: S.IsString s => Text' s -> Text' s -> Bool' s
-contains x y = Bool . Function "contains" $ [toExpression x, toExpression y]
+contains :: Expression Text -> Expression Text -> Expression Bool
+contains x y = Expression . Function "contains" $ [unExpression x, unExpression y]
 
--- | The opposite of 'contains'.
-doesNotContain :: S.IsString s => Text' s -> Text' s -> Bool' s
+-- | The opposite of `contains`.
+doesNotContain :: Expression Text -> Expression Text -> Expression Bool
 doesNotContain x y = not $ contains x y
 
 -- | The XPath @count()@ function.
-count :: (IsContext c, S.IsString s) => Path' c s -> Number' s
-count p = Number $ Function "count" [toExpression p]
+count :: IsPath p => p -> Expression Number
+count p = Expression $ Function "count" [unExpression $ toPath p]
 
 -- | The XPath @and@ operator.
-(&&.) :: S.IsString s => Bool' s -> Bool' s -> Bool' s
-x &&. y = Bool $ Operator "and" (toExpression x) (toExpression y)
+(&&.) :: Expression Bool -> Expression Bool -> Expression Bool
+x &&. y = Expression $ Operator "and" (unExpression x) (unExpression y)
 infixr 3 &&.
 
 -- | The XPath @or@ operator.
-(||.) :: S.IsString s => Bool' s -> Bool' s -> Bool' s
-x ||. y = Bool $ Operator "or" (toExpression x) (toExpression y)
+(||.) :: Expression Bool -> Expression Bool -> Expression Bool
+x ||. y = Expression $ Operator "or" (unExpression x) (unExpression y)
 infixr 2 ||.
 
 -- | The XPath @not(.)@ function.
-not :: S.IsString s => Bool' s -> Bool' s
-not x = Bool $ Function "not" [toExpression x]
+not :: Expression Bool -> Expression Bool
+not x = Expression $ Function "not" [unExpression x]
 
 data Axis = Ancestor |
             Child |
@@ -324,236 +279,141 @@ showAxis axis = case axis of
   Following        -> "following"
   FollowingSibling -> "following-sibling"
   Parent           -> "parent"
-  Self             -> "self"
 
--- | An XPath node which can be showed as the string type @s@.
-newtype Node' s = Node { unNode :: Expression s }
-
--- | 'Node'' specialised so it can be shown as 'P.String'.
-type Node = Node' P.String
-
-instance IsExpression (Node' s) where
-  toExpression = unNode
-
--- | An XPath beginning from some context `c` (either the root context or the current context).
-newtype Path' c s = Path { unPath :: Expression s }
-
--- | 'Path'' specialised so it can be shown as 'P.String'.
-type Path c = Path' c P.String
-
--- | An XPath relative to the current context.
-type RelativePath' = Path' CurrentContext
-
--- | 'RelativePath'' specialised so it can be shown as 'P.String'.
-type RelativePath = RelativePath' P.String
-
--- | An XPath beginning from the document root.
-type AbsolutePath' = Path' RootContext
-
--- | 'AbsolutePath'' specialised so it can be shown as 'P.String'.
-type AbsolutePath = AbsolutePath' P.String
-
--- | Type to indicate the XPath begins from the current context.
-data CurrentContext
-
--- | Type to indicate the XPath begins from the document root.
-data RootContext
-
--- | Class of valid types for the type parameter `c` in 'Path'. Library users should not create instances of this class.
-class IsContext c where
-  toPathBegin :: proxy c -> PathBegin
-
-instance IsContext RootContext where
-  toPathBegin _ = FromRootContext
-
-instance IsContext CurrentContext where
-  toPathBegin _ = FromCurrentContext
-
-instance IsContext c => IsExpression (Path' c s) where
-  toExpression = unPath
+-- | Opaque representation of an XPath node.
+data Node = Node {
+  nName      :: !T.Text,
+  nPredicate :: ![Expression']
+}
 
 -- | The XPath @node()@ function.
-node :: S.IsString s => Node' s
-node = Node $ Function "node" []
+node :: Node
+node = namedNode "node()"
 
 -- | Create a node with the given name.
-namedNode :: S.IsString s => s -> Node' s
-namedNode = Node . NamedNode
+namedNode :: T.Text -> Node
+namedNode n = Node n []
 
--- | Type to represent the root of the document. Useful in forming an XPaths which must begin from the root.
-data DocumentRoot' s = DocumentRoot
-
--- | 'DocumentRoot'' specialised so it can be used in paths to be shown as 'P.String'.
-type DocumentRoot = DocumentRoot' P.String
-
--- | The root of the document. There is no corresponding XPath expression for 'root' but it can be used to indicate that
--- an XPath must be begin from the root by using this as the first step in the path.
-root' :: DocumentRoot' s
-root' = DocumentRoot
-
--- | Specialisation of 'root'' so it can be used in paths to be shown as 'P.String'.
-root :: DocumentRoot
-root = root'
-
--- | Type family which allows a context to be inferred. This allows for support of abbreviated syntax.
-type family Context p where
-  Context (Path' c s) = c
-  Context (Node' s) = CurrentContext
-  Context (DocumentRoot' s) = RootContext
-
--- | Type family which associates an expression type with the type that will be returned by 'show'' when it is dislayed
--- in XPath syntax. This allows flexiblity to use different string-like types, such as 'P.String', @Text@, @ByteString@
--- or even builders for these types.
-type family (Showed p) where
-  Showed (Number' s) = s
-  Showed (Text' s) = s
-  Showed (Bool' s) = s
-  Showed (Path' c s) = s
-  Showed (Node' s) = s
-  Showed (DocumentRoot' s) = s
-
--- | Constraint for path-like types - i.e. they either a 'Path' or otherwise can be converted to one using abbreviated
--- syntax rules.
-type PathLike p = IsContext (Context p)
-
--- | Type class for the XPath @/@ operator. It can operate on multiple types as the axes can be inferred based on
--- XPath's abbreviated syntax. Library users should not create instances of this class.
-class (PathLike p, PathLike q, Showed p ~ Showed q) => SlashOperator p q where
-  -- | The XPath @/@ operator.
-  (/.) :: p -> q -> Path' (Context p) (Showed q)
-  infixl 8 /.
-
-instance IsContext c => SlashOperator (Path' c s) (Path' CurrentContext s) where
-  pa /. nextPa = Path $ case toExpression pa of
-    PathFrom begin fstPath P.Nothing preds -> PathFrom begin fstPath (P.Just $ toExpression nextPa) preds
-    _ -> PathFrom
-      (toPathBegin (Proxy :: Proxy c))
-      (toExpression $ fromCurrentContext pa)
-      (P.Just $ toExpression nextPa)
-      []
-
-instance IsContext c => SlashOperator (Path' c s) (Node' s) where
-  pa /. n = pa /. child n
-
-instance SlashOperator (Node' s) (Path' CurrentContext s) where
-  n /. pa = child n /. pa
-
-instance SlashOperator (Node' s) (Node' s) where
-  n /. nextNode = child n /. child nextNode
-
-instance SlashOperator (DocumentRoot' s) (Path' CurrentContext s) where
-  DocumentRoot /. p = fromRootContext p
-
-instance SlashOperator (DocumentRoot' s) (Node' s) where
-  DocumentRoot /. n = fromRootContext (child n)
-
--- | Type class for the XPath @//@ operator. It can operate on multiple types as the axes can be inferred based on
--- XPath's abbreviated syntax. Library users should not create instances of this class.
-class (PathLike p, PathLike q, Showed p ~ Showed q) => DoubleSlashOperator p q where
-  -- | The XPath @//@ operator.
-  (//.) :: p -> q -> Path' (Context p) (Showed q)
-  infixl 8 //.
-
-instance (IsContext c, S.IsString s) => DoubleSlashOperator (Path' c s) (Path' CurrentContext s) where
-  pa //. nextPa = Path $ case toExpression pa of
-    PathFrom begin fstPath P.Nothing preds -> PathFrom begin fstPath nextPa' preds
-    _ -> PathFrom (toPathBegin (Proxy :: Proxy c)) (toExpression $ fromCurrentContext pa) nextPa' []
-
-    where
-      nextPa' = P.Just . toExpression $ descendantOrSelf node /. nextPa
-
-instance (IsContext c, S.IsString s) => DoubleSlashOperator (Path' c s) (Node' s) where
-  pa //. n = pa /. descendantOrSelf node /. n
-
-instance S.IsString s => DoubleSlashOperator (Node' s) (Path' CurrentContext s) where
-  n //. pa = child n //. pa
-
-instance S.IsString s => DoubleSlashOperator (Node' s) (Node' s) where
-  n //. nextNode = child n //. child nextNode
-
-instance S.IsString s => DoubleSlashOperator (DocumentRoot' s) (Path' CurrentContext s) where
-  DocumentRoot //. p = fromRootContext (descendantOrSelf node) /. p
-
-instance S.IsString s => DoubleSlashOperator (DocumentRoot' s) (Node' s) where
-  DocumentRoot //. n = fromRootContext (descendantOrSelf node /. n)
-
-locationStep :: Axis -> Node' s -> Path' c s
-locationStep axis n = Path $ LocationStep axis (toExpression n)
+nodeToRelativePath :: Axis -> Node -> RelativePath
+nodeToRelativePath axis n = RelativeNode P.Nothing axis n
 
 -- | The XPath @ancestor::@ axis.
-ancestor :: Node' s -> Path' CurrentContext s
-ancestor = locationStep Ancestor
+ancestor :: Node -> RelativePath
+ancestor = nodeToRelativePath Ancestor
 
 -- | The XPath @child::@ axis.
-child :: Node' s -> Path' CurrentContext s
-child = locationStep Child
+child :: Node -> RelativePath
+child = nodeToRelativePath Child
 
 -- | The XPath @descendant::@ axis.
-descendant :: Node' s -> Path' CurrentContext s
-descendant = locationStep Descendant
+descendant :: Node -> RelativePath
+descendant = nodeToRelativePath Descendant
 
 -- | The XPath @descendant-or-self::@ axis.
-descendantOrSelf :: Node' s -> Path' CurrentContext s
-descendantOrSelf = locationStep DescendantOrSelf
+descendantOrSelf :: Node -> RelativePath
+descendantOrSelf = nodeToRelativePath DescendantOrSelf
 
 -- | The XPath @following::@ axis.
-following :: Node' s -> Path' CurrentContext s
-following = locationStep Following
+following :: Node -> RelativePath
+following = nodeToRelativePath Following
 
 -- | The XPath @following-sibling::@ axis.
-followingSibling :: Node' s -> Path' CurrentContext s
-followingSibling = locationStep FollowingSibling
+followingSibling :: Node -> RelativePath
+followingSibling = nodeToRelativePath FollowingSibling
 
 -- | The XPath @parent::@ axis.
-parent :: Node' s -> Path' CurrentContext s
-parent = locationStep Parent
+parent :: Node -> RelativePath
+parent = nodeToRelativePath Parent
 
--- | The XPath @self::@ axis.
-self :: Node' s -> Path' CurrentContext s
-self = locationStep Self
+-- | The XPath @//@ operator.
+doubleSlash :: Node -> Path
+doubleSlash n = fromRoot $ descendantOrSelf node /. n
 
-changeContext :: PathBegin -> Path' c s -> Path' c' s
-changeContext begin (Path p) = Path $ case p of
-  PathFrom _ fstPath sndPath preds -> PathFrom begin fstPath sndPath preds
-  LocationStep _ _                 -> if begin == FromRootContext then PathFrom begin p P.Nothing [] else p
-  other                            -> PathFrom begin other P.Nothing []
+-- | A relative XPath, i.e. an XPath that is relative to the current node.
+data RelativePath = RelativeNode (P.Maybe RelativePath) Axis Node |
+                    Bracketed (P.Maybe RelativePath) RelativePath [Expression']
 
-fromCurrentContext :: Path' c s -> Path' CurrentContext s
-fromCurrentContext = changeContext FromCurrentContext
+showPrev :: P.Maybe RelativePath -> T.Text
+showPrev = P.maybe "" $ \rp -> showRelativePath rp <> "/"
 
-fromRootContext :: Path' CurrentContext s -> Path' RootContext s
-fromRootContext = changeContext FromRootContext
+showRelativePath :: RelativePath -> T.Text
+showRelativePath (RelativeNode prev axis n) = showPrev prev <>
+  showAxis axis <>
+  "::" <>
+  nName n <>
+  showExpressions (nPredicate n)
+showRelativePath (Bracketed prev rp pred)
+  | P.null pred = showPrev prev <> showRelativePath rp
+  | P.otherwise = showPrev prev <> "(" <> showRelativePath rp <> ")" <> showExpressions pred
 
--- | The union of two node-sets.
-(|.) :: (PathLike p,
-         PathLike q,
-         IsExpression p,
-         IsExpression q,
-         Context p ~ Context q,
-         Showed p ~ Showed q,
-         S.IsString (Showed q)) =>
-         p -> q-> Path' (Context p) (Showed q)
-x |. y = Path $ Operator "|" (toExpression x) (toExpression y)
-infix 7 |.
+data PathType = Relative | Absolute
 
--- | Type class to allow filtering of node sets. Library users should not create instances of this class.
-class (IsExpression p, PathLike p) => Filterable p where
-  -- | Filter the nodes returned by @p@ such that they match the list of predicates.
-  (#) :: Showed p ~ s => p -> [Bool' s] -> p
-  infixl 9 #
+-- | Type class for allowing XPath-like operations. Do not create instances of this class.
+class IsPath t where
+  -- | The XPath (non-abbreviated) @/@ operator.
+  (./.) :: t -> RelativePath -> t
+  infixl 2 ./.
 
-instance IsContext c => Filterable (Path' c s) where
-  xp # preds =
-    let predExps = toExpression <$> preds in
-    Path $ case toExpression xp of
-      LocationStep axis (FilteredNode n ps)  -> LocationStep axis (FilteredNode n (ps <> predExps))
-      LocationStep axis e                    -> LocationStep axis (FilteredNode e predExps)
-      PathFrom begin firstSteps nextSteps ps -> PathFrom begin firstSteps nextSteps (ps <> predExps)
-      otherExp                               -> PathFrom (toPathBegin (Proxy :: Proxy c)) otherExp P.Nothing predExps
+  -- | Convert to a Path.
+  toPath :: t -> Path
 
-instance Filterable (Node' s) where
-  n # preds =
-    let predExps = toExpression <$> preds in
-    Node $ case toExpression n of
-      FilteredNode nExp ps -> FilteredNode nExp (ps <> predExps)
-      otherExp             -> FilteredNode otherExp predExps
+instance IsPath RelativePath where
+  rp ./. RelativeNode P.Nothing axis n = RelativeNode (P.Just rp) axis n
+  rp ./. RelativeNode (P.Just prev) axis n = RelativeNode (P.Just $ rp ./. prev) axis n
+  rp ./. Bracketed P.Nothing rp' pred = Bracketed (P.Just rp) rp' pred
+  rp ./. b@(Bracketed (P.Just _) _ _) = Bracketed (P.Just rp) b []
+
+  toPath rp = Expression $ Path Relative rp []
+
+class Filterable t where
+  -- | Filter a set of nodes by the given predicate.
+  (#) :: t -> Expression Bool -> t
+  infixl 3 #
+
+instance Filterable Node where
+  n # e = n { nPredicate = unExpression e : nPredicate n }
+
+instance Filterable RelativePath where
+  b@(Bracketed prev rp pred) # e
+    | isJust prev = Bracketed P.Nothing b [unExpression e]
+    | P.otherwise = Bracketed prev rp (unExpression e : pred)
+  rn@(RelativeNode prev axis n) # e
+   | isJust prev = Bracketed P.Nothing rn [unExpression e]
+   | P.otherwise = RelativeNode prev axis n { nPredicate = unExpression e : nPredicate n }
+
+-- | The XPath abbreviated @/@ operator.
+(/.) :: IsPath p => p -> Node -> p
+p /. n = p ./. child n
+infixl 2 /.
+
+-- | The XPath @//@ operator.
+(//.) :: IsPath p => p -> Node -> p
+p //. n = p ./. descendantOrSelf node ./. child n
+infixl 2 //.
+
+-- | Display an XPath expression. This is useful to sending the XPath expression to a separate XPath evaluator e.g.
+-- a web browser.
+show :: IsPath p => p -> T.Text
+show = showExpression . unExpression . toPath
+
+nonPathError :: a
+nonPathError = P.error "HaXPath internal error: unexpected non-Path expression"
+
+instance IsPath Path where
+  Expression p@(Path _ _ _) ./. rp' = Expression $ BracketAroundLeftPath p rp' []
+  Expression p@(BracketAroundLeftPath _ _ _) ./. rp' = Expression $ BracketAroundLeftPath p rp' []
+  _ ./. _ = nonPathError
+
+  toPath = P.id
+
+instance Filterable Path where
+  Expression (Path context rp es) # e = Expression $ Path context rp (unExpression e : es)
+  Expression (BracketAroundLeftPath innerPath rp es) # e = Expression $ BracketAroundLeftPath
+    innerPath
+    rp
+    (unExpression e : es)
+  _ # _ = nonPathError
+
+-- | Fix a relative path to begin from the document root (i.e. create an absolute path).
+fromRoot :: RelativePath -> Path
+fromRoot rp = Expression $ Path Absolute rp []

@@ -186,6 +186,7 @@ testPredicate = H.TestLabel "predicates" . H.TestCase $ do
     "/(descendant-or-self::node()/child::a[position() = 2])/child::b"
     (X.show $ X.root //. a # [X.position =. 2] /. b)
 
+<<<<<<< HEAD
 testShowGeneric :: H.Test
 testShowGeneric = H.TestLabel "show generic" . H.TestCase $ do
   H.assertEqual "Show Text" (expectedShow :: Text) (X.show' path)
@@ -206,6 +207,8 @@ testShowGeneric = H.TestLabel "show generic" . H.TestCase $ do
     path :: IsString s => X.Path' X.CurrentContext s
     path = a /. b # [X.at "id" =. "hello \"world\""]
 
+=======
+>>>>>>> master
 testUnion :: H.Test
 testUnion = H.TestLabel "union" . H.TestCase $ do
   H.assertEqual "Union absolute paths" "(/child::a/child::b) | (/child::c)" (X.show $ X.root /. a /. b |. X.root /. c)
@@ -221,6 +224,9 @@ suite = H.TestLabel "HaXPath" $ H.TestList [
     testNum,
     testOrd,
     testPredicate,
+<<<<<<< HEAD
     testShowGeneric,
+=======
+>>>>>>> master
     testUnion
   ]
