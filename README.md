@@ -1,6 +1,6 @@
 # HaXPath
 HaXPath is a library and embedded domain-specifc language which uses strongly-typed Haskell expressions to represent
-XPaths.
+XPaths. It is available on Hackage [here](https://hackage.haskell.org/package/HaXPath).
 
 ## Motivation
 In many contexts when querying XML documents in Haskell we often need to use `String` values to represent the
